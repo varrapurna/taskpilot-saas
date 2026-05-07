@@ -1,142 +1,69 @@
-.page {
-  --background: #fafafa;
-  --foreground: #fff;
-
-  --text-primary: #000;
-  --text-secondary: #666;
-
-  --button-primary-hover: #383838;
-  --button-secondary-hover: #f2f2f2;
-  --button-secondary-border: #ebebeb;
-
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-geist-sans);
-  background-color: var(--background);
-}
-
 .main {
+  min-height: 100vh;
   display: flex;
-  flex: 1;
-  width: 100%;
-  max-width: 800px;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: space-between;
-  background-color: var(--foreground);
-  padding: 120px 60px;
-}
-
-.intro {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  text-align: left;
-  gap: 24px;
-}
-
-.intro h1 {
-  max-width: 320px;
-  font-size: 40px;
-  font-weight: 600;
-  line-height: 48px;
-  letter-spacing: -2.4px;
-  text-wrap: balance;
-  color: var(--text-primary);
-}
-
-.intro p {
-  max-width: 440px;
-  font-size: 18px;
-  line-height: 32px;
-  text-wrap: balance;
-  color: var(--text-secondary);
-}
-
-.intro a {
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.ctas {
-  display: flex;
-  flex-direction: row;
-  width: 100%;
-  max-width: 440px;
-  gap: 16px;
-  font-size: 14px;
-}
-
-.ctas a {
-  display: flex;
-  justify-content: center;
   align-items: center;
-  height: 40px;
-  padding: 0 16px;
-  border-radius: 128px;
-  border: 1px solid transparent;
-  transition: 0.2s;
-  cursor: pointer;
-  width: fit-content;
-  font-weight: 500;
+  justify-content: center;
+  padding: 40px 24px;
+  background: #f5f7fa;
 }
 
-a.primary {
-  background: var(--text-primary);
-  color: var(--background);
-  gap: 8px;
+.hero {
+  background: #fff;
+  border-radius: 16px;
+  padding: 48px 40px;
+  max-width: 560px;
+  width: 100%;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+  text-align: center;
 }
 
-a.secondary {
-  border-color: var(--button-secondary-border);
+.hero h1 {
+  font-size: 2.4rem;
+  font-weight: 700;
+  margin: 0 0 12px;
+  color: #111;
 }
 
-/* Enable hover only on non-touch devices */
-@media (hover: hover) and (pointer: fine) {
-  a.primary:hover {
-    background: var(--button-primary-hover);
-    border-color: transparent;
-  }
-
-  a.secondary:hover {
-    background: var(--button-secondary-hover);
-    border-color: transparent;
-  }
+.tagline {
+  font-size: 1.1rem;
+  color: #555;
+  margin: 0 0 28px;
+  line-height: 1.6;
 }
 
-@media (max-width: 600px) {
-  .main {
-    padding: 48px 24px;
-  }
-
-  .intro {
-    gap: 16px;
-  }
-
-  .intro h1 {
-    font-size: 32px;
-    line-height: 40px;
-    letter-spacing: -1.92px;
-  }
+.features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 32px;
+  text-align: left;
+  display: inline-block;
 }
 
-@media (prefers-color-scheme: dark) {
-  .logo {
-    filter: invert();
-  }
+.features li {
+  padding: 6px 0;
+  font-size: 1rem;
+  color: #333;
+}
 
-  .page {
-    --background: #000;
-    --foreground: #000;
+.ctaButton {
+  display: inline-block;
+  background: #25D366;
+  color: #fff;
+  font-weight: 600;
+  font-size: 1rem;
+  padding: 14px 28px;
+  border-radius: 8px;
+  text-decoration: none;
+  margin-bottom: 20px;
+  transition: background 0.2s;
+}
 
-    --text-primary: #ededed;
-    --text-secondary: #999;
+.ctaButton:hover {
+  background: #1da851;
+}
 
-    --button-primary-hover: #ccc;
-    --button-secondary-hover: #1a1a1a;
-    --button-secondary-border: #1a1a1a;
-  }
+.howto {
+  font-size: 0.9rem;
+  color: #777;
+  margin: 0;
 }
