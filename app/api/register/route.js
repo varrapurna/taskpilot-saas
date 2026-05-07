@@ -10,6 +10,9 @@ export async function POST(request) {
       return Response.json({ error: 'All fields are required.' }, { status: 400 });
     }
 
+    // Normalize: strip leading + so it matches what WhatsApp sends (e.g. 917569489092)
+    const normalizedPhone = phone.replace(/^\+/, '');
+
     try {
       await axios.post(`${taigaBaseUrl}/auth`, {
         type: 'normal',
@@ -23,15 +26,15 @@ export async function POST(request) {
       );
     }
 
-    await saveCredentials(phone, {
-      whatsapp_number: phone,
+    await saveCredentials(normalizedPhone, {
+      whatsapp_number: normalizedPhone,
       display_name: name,
       taiga_username: taigaUsername,
       taiga_password_enc: encrypt(taigaPassword),
       taiga_base_url: taigaBaseUrl,
     });
 
-    return Response.json({ success: true, phone });
+    return Response.json({ success: true, phone: normalizedPhone });
   } catch (err) {
     console.error('Register error:', err.message);
     return Response.json({ error: 'Something went wrong. Please try again.' }, { status: 500 });
