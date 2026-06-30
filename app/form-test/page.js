@@ -5,8 +5,8 @@ export default function FormTest() {
     <>
       <Script id="mhl-config" strategy="beforeInteractive">
         {`
-          window.mhl_id = "d23a8709-6409-43b0-8a98-127e06ec6d47";
-          window.mhl_ingest_base = "/api/mhl";
+          window.mhl_id = "51a9260b-d95e-464b-81a0-c17010bdf019";
+          window.mhl_ingest_base = "https://mhleadsg.exploremira.com/api/ingestion";
         `}
       </Script>
       <Script
