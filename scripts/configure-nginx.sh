@@ -6,9 +6,11 @@
 set -euo pipefail
 
 CONFIG_FILE="/etc/nginx/sites-enabled/taskpilot-api"
-BACKUP_FILE="${CONFIG_FILE}.bak.$(date +%Y%m%d%H%M%S)"
+BACKUP_DIR="/etc/nginx/taskpilot-backups"
+BACKUP_FILE="${BACKUP_DIR}/taskpilot-api.$(date +%Y%m%d%H%M%S)"
 
 echo "Saving a backup to ${BACKUP_FILE}..."
+sudo install -d -m 700 "$BACKUP_DIR"
 sudo cp -a "$CONFIG_FILE" "$BACKUP_FILE"
 
 echo "Writing TaskPilot routing configuration..."
