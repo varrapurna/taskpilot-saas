@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+
+# Run this on the Lightsail server as the ubuntu user:
+#   bash scripts/deploy-aws.sh
+# It keeps the application source and PocketBase migrations in GitHub, while
+# the live PocketBase data remains in /home/ubuntu/pocketbase.
+
+set -euo pipefail
+
+APP_DIR="/opt/taskpilot/taskpilot-saas"
+PB_DIR="/home/ubuntu/pocketbase"
+BRANCH="production/aws-api"
+
+cd "$APP_DIR"
+
+echo "Updating TaskPilot source..."
+GIT_SSH_COMMAND="ssh -i /home/ubuntu/.ssh/taskpilot -o IdentitiesOnly=yes" \
+  git pull --ff-only origin "$BRANCH"
+
+echo "Installing locked dependencies..."
+npm ci
+
+echo "Building TaskPilot API..."
+npm run build
+
+echo "Installing the TaskPilot service definition..."
+sudo install -D -m 644 \
+  "$APP_DIR/infrastructure/systemd/taskpilot-api.service" \
+  /etc/systemd/system/taskpilot-api.service
+
+echo "Syncing PocketBase migrations..."
+sudo install -d -m 755 "$PB_DIR/pb_migrations"
+sudo cp -a "$APP_DIR/infrastructure/pocketbase/pb_migrations/." "$PB_DIR/pb_migrations/"
+
+echo "Restarting services..."
+sudo systemctl daemon-reload
+sudo systemctl restart pocketbase
+sudo systemctl enable --now taskpilot-api
+
+echo "Deployment complete. Check https://api.taskpilotapp.online/api/health"
