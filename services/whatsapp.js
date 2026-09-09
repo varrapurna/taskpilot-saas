@@ -1,6 +1,12 @@
 import axios from 'axios';
 
-const WHATSAPP_API_URL = 'https://graph.facebook.com/v19.0';
+function getWhatsAppApiUrl() {
+  const version = process.env.META_GRAPH_API_VERSION;
+  if (!/^v\d+\.\d+$/.test(version || '')) {
+    throw new Error('META_GRAPH_API_VERSION must be set to an active Graph API version, for example v24.0.');
+  }
+  return `https://graph.facebook.com/${version}`;
+}
 
 export function createWhatsAppClient(userConfig) {
   const PHONE_ID = userConfig.phoneNumberId;
@@ -8,7 +14,7 @@ export function createWhatsAppClient(userConfig) {
 
   async function sendMessage(text, to) {
     await axios.post(
-      `${WHATSAPP_API_URL}/${PHONE_ID}/messages`,
+      `${getWhatsAppApiUrl()}/${PHONE_ID}/messages`,
       {
         messaging_product: 'whatsapp',
         to,

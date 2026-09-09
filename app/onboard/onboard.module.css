@@ -1,30 +1,44 @@
-.main {
+.main,
+.selectorMain {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 40px 24px;
-  background: #f5f7fa;
+  background:
+    radial-gradient(circle at top left, rgba(37, 211, 102, 0.13), transparent 34%),
+    #f5f7fa;
 }
 
 .card {
   background: #fff;
+  border: 1px solid #e7ebef;
   border-radius: 16px;
   padding: 40px;
   max-width: 500px;
   width: 100%;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+  box-shadow: 0 16px 44px rgba(18, 30, 43, 0.08);
 }
 
 .card h1 {
   font-size: 1.6rem;
   font-weight: 700;
-  margin: 0 0 8px;
-  color: #111;
+  margin: 18px 0 8px;
+  color: #111827;
+}
+
+.backLink {
+  color: #52606d;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.backLink:hover {
+  color: #159447;
 }
 
 .subtitle {
-  color: #666;
+  color: #667085;
   margin: 0 0 28px;
   font-size: 0.95rem;
   line-height: 1.5;
@@ -39,34 +53,35 @@
 .form label {
   font-size: 0.85rem;
   font-weight: 600;
-  color: #444;
+  color: #344054;
   margin-top: 12px;
 }
 
 .form input {
-  border: 1.5px solid #ddd;
+  border: 1.5px solid #d0d5dd;
   border-radius: 8px;
-  padding: 10px 14px;
+  padding: 11px 14px;
   font-size: 0.95rem;
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
   width: 100%;
   box-sizing: border-box;
 }
 
 .form input:focus {
-  border-color: #25D366;
+  border-color: #25d366;
+  box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.13);
 }
 
 .hint {
   font-weight: 400;
-  color: #999;
+  color: #98a2b3;
   font-size: 0.8rem;
 }
 
 .error {
   background: #fff3f3;
-  color: #c0392b;
+  color: #b42318;
   border: 1px solid #f5c6c6;
   border-radius: 6px;
   padding: 10px 14px;
@@ -76,22 +91,222 @@
 
 .submitBtn {
   margin-top: 20px;
-  background: #25D366;
+  background: #1da851;
   color: #fff;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 1rem;
   padding: 13px;
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.2s, transform 0.2s;
 }
 
 .submitBtn:hover:not(:disabled) {
-  background: #1da851;
+  background: #168f43;
+  transform: translateY(-1px);
 }
 
 .submitBtn:disabled {
-  background: #aaa;
+  background: #98a2b3;
   cursor: not-allowed;
+}
+
+.selectorMain {
+  align-items: flex-start;
+  padding-top: 64px;
+}
+
+.selectorShell {
+  width: min(940px, 100%);
+}
+
+.brand {
+  display: inline-flex;
+  color: #111827;
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.selectorIntro {
+  max-width: 650px;
+  margin: 52px auto 34px;
+  text-align: center;
+}
+
+.eyebrow {
+  display: inline-block;
+  color: #168f43;
+  background: #eafaf0;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.selectorIntro h1 {
+  color: #101828;
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+  margin: 16px 0 12px;
+}
+
+.selectorIntro p,
+.integrationBody p,
+.selectorNote {
+  color: #667085;
+  line-height: 1.65;
+}
+
+.integrationGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+}
+
+.integrationCard {
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #e4e7ec;
+  border-radius: 18px;
+  box-shadow: 0 14px 36px rgba(18, 30, 43, 0.08);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.integrationCard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 20px 44px rgba(18, 30, 43, 0.12);
+}
+
+.logoPanel {
+  height: 190px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #f4fffb, #edf2ff);
+  padding: 34px;
+}
+
+.darkLogoPanel {
+  background: linear-gradient(145deg, #1c2733, #0e1620);
+}
+
+.taigaLogo {
+  width: 116px;
+  height: 116px;
+  object-fit: contain;
+}
+
+.mhConnektLogo {
+  width: min(290px, 90%);
+  height: auto;
+  object-fit: contain;
+}
+
+.integrationBody {
+  padding: 24px;
+}
+
+.cardTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.cardTitleRow h2 {
+  color: #101828;
+  font-size: 1.25rem;
+}
+
+.availableBadge,
+.nextBadge {
+  flex: none;
+  border-radius: 999px;
+  padding: 5px 9px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.availableBadge {
+  color: #067647;
+  background: #ecfdf3;
+}
+
+.nextBadge {
+  color: #475467;
+  background: #f2f4f7;
+}
+
+.integrationBody p {
+  min-height: 78px;
+  margin: 0 0 20px;
+  font-size: 0.92rem;
+}
+
+.connectButton,
+.disabledButton {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 9px;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.connectButton {
+  color: #fff;
+  background: #168f43;
+  transition: background 0.2s;
+}
+
+.connectButton:hover {
+  background: #117638;
+}
+
+.disabledButton {
+  color: #667085;
+  background: #f2f4f7;
+  border: 1px solid #e4e7ec;
+}
+
+.selectorNote {
+  margin: 24px 0 0;
+  text-align: center;
+  font-size: 0.82rem;
+}
+
+@media (max-width: 700px) {
+  .main,
+  .selectorMain {
+    padding: 24px 16px;
+  }
+
+  .selectorMain {
+    padding-top: 28px;
+  }
+
+  .selectorIntro {
+    margin: 38px auto 26px;
+  }
+
+  .integrationGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .integrationBody p {
+    min-height: auto;
+  }
+
+  .card {
+    padding: 28px 20px;
+  }
 }

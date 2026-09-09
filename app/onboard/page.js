@@ -1,111 +1,87 @@
-'use client';
-
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import Image from 'next/image';
+import Link from 'next/link';
 import styles from './onboard.module.css';
 
+const integrations = [
+  {
+    name: 'Taiga',
+    description: 'View tasks, post comments, and update task or story statuses from WhatsApp.',
+    image: '/integrations/taiga-mark.png',
+    imageAlt: 'Taiga',
+    imageClassName: styles.taigaLogo,
+    href: '/onboard/taiga',
+    action: 'Connect Taiga',
+    status: 'Available',
+    available: true,
+  },
+  {
+    name: 'MH Connekt',
+    description: 'View assigned projects and prepare daily timesheet activities from WhatsApp.',
+    image: '/integrations/mhconnekt-logo.png',
+    imageAlt: 'MH Connekt',
+    imageClassName: styles.mhConnektLogo,
+    action: 'Setup coming next',
+    status: 'Next integration',
+    available: false,
+  },
+];
+
 export default function OnboardPage() {
-  const router = useRouter();
-  const [form, setForm] = useState({
-    name: '',
-    phone: '',
-    taigaUsername: '',
-    taigaPassword: '',
-    taigaBaseUrl: 'https://api.taiga.io/api/v1',
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  function handleChange(e) {
-    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
-  }
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    try {
-      const res = await fetch('/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || 'Something went wrong.');
-      } else {
-        router.push(`/dashboard?phone=${encodeURIComponent(form.phone)}&name=${encodeURIComponent(form.name)}`);
-      }
-    } catch {
-      setError('Network error. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
   return (
-    <main className={styles.main}>
-      <div className={styles.card}>
-        <h1>📋 Connect Your Taiga Account</h1>
-        <p className={styles.subtitle}>
-          Fill in your details below. We&apos;ll verify your Taiga login and you&apos;ll be ready in seconds.
+    <main className={styles.selectorMain}>
+      <section className={styles.selectorShell}>
+        <Link href="/" className={styles.brand}>TaskPilot</Link>
+
+        <div className={styles.selectorIntro}>
+          <span className={styles.eyebrow}>Connect your workspace</span>
+          <h1>Choose the tools you use</h1>
+          <p>
+            Connect one or both. When both are active, TaskPilot will ask which workspace
+            you want to use in WhatsApp.
+          </p>
+        </div>
+
+        <div className={styles.integrationGrid}>
+          {integrations.map((integration) => (
+            <article className={styles.integrationCard} key={integration.name}>
+              <div className={`${styles.logoPanel} ${!integration.available ? styles.darkLogoPanel : ''}`}>
+                <Image
+                  src={integration.image}
+                  alt={integration.imageAlt}
+                  width={integration.name === 'Taiga' ? 192 : 968}
+                  height={integration.name === 'Taiga' ? 192 : 247}
+                  className={integration.imageClassName}
+                />
+              </div>
+
+              <div className={styles.integrationBody}>
+                <div className={styles.cardTitleRow}>
+                  <h2>{integration.name}</h2>
+                  <span className={integration.available ? styles.availableBadge : styles.nextBadge}>
+                    {integration.status}
+                  </span>
+                </div>
+                <p>{integration.description}</p>
+
+                {integration.available ? (
+                  <Link href={integration.href} className={styles.connectButton}>
+                    {integration.action}
+                    <span aria-hidden="true">→</span>
+                  </Link>
+                ) : (
+                  <button className={styles.disabledButton} type="button" disabled>
+                    {integration.action}
+                  </button>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+
+        <p className={styles.selectorNote}>
+          Your account credentials will be encrypted and handled only by the TaskPilot backend.
         </p>
-
-        <form onSubmit={handleSubmit} className={styles.form}>
-          <label>Your Name</label>
-          <input
-            name="name"
-            placeholder="e.g. Purnachandra"
-            value={form.name}
-            onChange={handleChange}
-            required
-          />
-
-          <label>WhatsApp Number <span className={styles.hint}>(with country code, no spaces)</span></label>
-          <input
-            name="phone"
-            placeholder="e.g. 917569489092"
-            value={form.phone}
-            onChange={handleChange}
-            required
-          />
-
-          <label>Taiga Username</label>
-          <input
-            name="taigaUsername"
-            placeholder="Your Taiga username"
-            value={form.taigaUsername}
-            onChange={handleChange}
-            required
-          />
-
-          <label>Taiga Password</label>
-          <input
-            type="password"
-            name="taigaPassword"
-            placeholder="Your Taiga password"
-            value={form.taigaPassword}
-            onChange={handleChange}
-            required
-          />
-
-          <label>Taiga URL <span className={styles.hint}>(leave as-is for taiga.io)</span></label>
-          <input
-            name="taigaBaseUrl"
-            value={form.taigaBaseUrl}
-            onChange={handleChange}
-            required
-          />
-
-          {error && <p className={styles.error}>⚠️ {error}</p>}
-
-          <button type="submit" disabled={loading} className={styles.submitBtn}>
-            {loading ? 'Connecting...' : 'Connect & Activate'}
-          </button>
-        </form>
-      </div>
+      </section>
     </main>
   );
 }

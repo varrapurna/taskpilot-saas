@@ -7,16 +7,16 @@ export default function Home() {
       <div className={styles.hero}>
         <h1>📋 TaskPilot</h1>
         <p className={styles.tagline}>
-          Manage your Taiga tasks directly from WhatsApp — no app switching needed.
+          Manage work across Taiga and MH Connekt directly from WhatsApp.
         </p>
         <ul className={styles.features}>
-          <li>✅ View all your open tasks instantly</li>
+          <li>✅ Choose the workspace you want to use</li>
           <li>💬 Post AI-enhanced comments in seconds</li>
           <li>🔄 Change task and story statuses on the go</li>
-          <li>📅 See deadlines and days remaining at a glance</li>
+          <li>🕒 Prepare project timesheet activities</li>
         </ul>
         <Link href="/onboard" className={styles.ctaButton}>
-          Get Started — Connect Your Taiga Account
+          Get Started — Connect Your Work Tools
         </Link>
         <p className={styles.howto}>
           Already registered? Just send <strong>tasks</strong> to{' '}
