@@ -13,16 +13,27 @@ export function createWhatsAppClient(userConfig) {
   const TOKEN = userConfig.accessToken;
 
   async function sendMessage(text, to) {
-    await axios.post(
-      `${getWhatsAppApiUrl()}/${PHONE_ID}/messages`,
-      {
-        messaging_product: 'whatsapp',
-        to,
-        type: 'text',
-        text: { body: text },
-      },
-      { headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' } }
-    );
+    try {
+      await axios.post(
+        `${getWhatsAppApiUrl()}/${PHONE_ID}/messages`,
+        {
+          messaging_product: 'whatsapp',
+          to,
+          type: 'text',
+          text: { body: text },
+        },
+        { headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' } }
+      );
+    } catch (error) {
+      const providerError = error.response?.data?.error;
+      console.error('WhatsApp send failed:', {
+        status: error.response?.status,
+        code: providerError?.code,
+        type: providerError?.type,
+        message: providerError?.message,
+      });
+      throw error;
+    }
   }
 
   function formatDue(due) {
