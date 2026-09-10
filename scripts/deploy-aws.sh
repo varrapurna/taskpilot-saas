@@ -11,6 +11,7 @@ set -euo pipefail
 
 APP_DIR="/opt/taskpilot/taskpilot-saas"
 PB_DIR="/home/ubuntu/pocketbase"
+PB_MIGRATIONS_DIR="$APP_DIR/database/pocketbase/migrations"
 BRANCH="main"
 
 cd "$APP_DIR"
@@ -41,7 +42,7 @@ sudo install -D -m 644 \
 
 echo "Syncing PocketBase migrations..."
 sudo install -d -m 755 "$PB_DIR/pb_migrations"
-sudo cp -a "$APP_DIR/infrastructure/pocketbase/pb_migrations/." "$PB_DIR/pb_migrations/"
+sudo cp -a "$PB_MIGRATIONS_DIR/." "$PB_DIR/pb_migrations/"
 
 echo "Restarting services..."
 sudo systemctl daemon-reload

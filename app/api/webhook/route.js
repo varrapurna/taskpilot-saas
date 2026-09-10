@@ -1,11 +1,11 @@
-import { getCredentialsByPhone, getSession, saveSession } from '@/lib/pocketbase';
-import { decrypt } from '@/lib/crypto';
-import { createTaigaClient } from '@/services/taiga';
-import { createWhatsAppClient } from '@/services/whatsapp';
-import { enhanceComment } from '@/services/gemini';
-import PRE_COMMENTS from '@/utils/precomments';
-import { verifyMetaWebhookSignature } from '@/lib/meta-signature';
-import { getMetaWhatsAppConfig } from '@/lib/meta-config';
+import { getCredentialsByPhone, getSession, saveSession } from '@/server/database/pocketbase';
+import { decrypt } from '@/server/security/crypto';
+import { createTaigaClient } from '@/server/integrations/taiga';
+import { createWhatsAppClient } from '@/server/integrations/whatsapp';
+import { enhanceComment } from '@/server/integrations/gemini';
+import PRE_COMMENTS from '@/server/whatsapp/precomments';
+import { verifyMetaWebhookSignature } from '@/server/whatsapp/meta-signature';
+import { getMetaWhatsAppConfig } from '@/server/whatsapp/meta-config';
 
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 const META_APP_SECRET = process.env.META_APP_SECRET;

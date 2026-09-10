@@ -1,5 +1,5 @@
-import { authJson, authOptions } from '@/lib/auth-response';
-import { clearAuthCookie } from '@/lib/client-auth';
+import { authJson, authOptions } from '@/server/http/auth-response';
+import { clearAuthCookie } from '@/server/auth/account';
 
 export function OPTIONS(request) { return authOptions(request); }
 

@@ -1,7 +1,7 @@
 import axios from 'axios';
-import { encrypt } from '@/lib/crypto';
-import { saveCredentials } from '@/lib/pocketbase';
-import { getCorsHeaders } from '@/lib/cors';
+import { encrypt } from '@/server/security/crypto';
+import { saveCredentials } from '@/server/database/pocketbase';
+import { getCorsHeaders } from '@/server/http/cors';
 
 const TAIGA_API_BASE_URL = 'https://api.taiga.io/api/v1';
 

@@ -1,4 +1,4 @@
-import { getCorsHeaders } from '@/lib/cors';
+import { getCorsHeaders } from '@/server/http/cors';
 
 export function authOptions(request) {
   const headers = getCorsHeaders(request);

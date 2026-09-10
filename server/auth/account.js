@@ -1,6 +1,6 @@
 import PocketBase from 'pocketbase';
 import { cookies } from 'next/headers';
-import { createAdminClient } from '@/lib/pocketbase';
+import { createAdminClient } from '@/server/database/pocketbase';
 
 export const AUTH_COOKIE = 'taskpilot_auth';
 
