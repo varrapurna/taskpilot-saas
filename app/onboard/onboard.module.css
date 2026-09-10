@@ -123,10 +123,14 @@
 
 .brand {
   display: inline-flex;
-  color: #111827;
-  font-size: 1.1rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  color: #172018;
+  font-size: 1.72rem;
+  font-weight: 850;
+  letter-spacing: -.055em;
+}
+
+.brand span {
+  color: #941d30;
 }
 
 .selectorIntro {

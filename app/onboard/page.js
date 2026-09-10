@@ -30,7 +30,7 @@ export default function OnboardPage() {
   return (
     <main className={styles.selectorMain}>
       <section className={styles.selectorShell}>
-        <Link href="/" className={styles.brand}>TaskPilot</Link>
+        <Link href="/" className={styles.brand}>Task<span>Pilot</span></Link>
 
         <div className={styles.selectorIntro}>
           <span className={styles.eyebrow}>Connect your workspace</span>

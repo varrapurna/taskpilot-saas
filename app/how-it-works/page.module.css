@@ -1,0 +1,32 @@
+.main { min-height: 100vh; color: #172018; background: #fbfbf9; }
+.nav, .intro, .steps, .bottomCta, .footer { width: min(1120px, calc(100% - 64px)); margin-right: auto; margin-left: auto; }
+.nav { display: flex; align-items: center; justify-content: space-between; padding: 28px 0; }
+.brand { color: #172018; font-size: 1.72rem; font-weight: 850; letter-spacing: -.055em; text-decoration: none; }
+.brand span { color: #941d30; }
+.navActions { display: flex; align-items: center; gap: 12px; }
+.signIn { padding: 11px 15px; color: #263029; font-size: .92rem; font-weight: 700; text-decoration: none; }
+.navCta, .bottomCta a { display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding: 0 19px; border-radius: 8px; color: #fff; background: #202a22; font-size: .92rem; font-weight: 750; text-decoration: none; }
+.intro { padding: 112px 0 96px; }
+.intro > p, .bottomCta p { margin: 0 0 16px; color: #bd444d; font-size: .76rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+.intro h1 { max-width: 740px; margin: 0; color: #111712; font-size: clamp(3.4rem, 7vw, 6.8rem); line-height: .94; letter-spacing: -.09em; }
+.intro > span { display: block; max-width: 540px; margin-top: 30px; color: #687168; font-size: 1.07rem; line-height: 1.65; }
+.steps { border-top: 1px solid #dce1da; }
+.step { display: grid; grid-template-columns: 130px minmax(240px, .85fr) minmax(280px, 1fr); gap: 34px; align-items: center; min-height: 190px; border-bottom: 1px solid #dce1da; }
+.number { color: #c34b53; font-size: .78rem; font-weight: 850; letter-spacing: .1em; }
+.step h2 { margin: 0; font-size: clamp(1.45rem, 2.5vw, 2.25rem); letter-spacing: -.055em; }
+.step p { max-width: 420px; margin: 0; color: #687168; font-size: .97rem; line-height: 1.6; }
+.bottomCta { display: flex; align-items: center; justify-content: space-between; gap: 30px; margin-top: 90px; padding: 48px; border-radius: 18px; color: #fff; background: #202a22; }
+.bottomCta p { color: #ec8b90; }
+.bottomCta h2 { max-width: 520px; margin: 0; font-size: clamp(1.8rem, 3vw, 2.8rem); line-height: 1.08; letter-spacing: -.06em; }
+.bottomCta a { flex: 0 0 auto; color: #1b241c; background: #fff; }
+.footer { display: flex; align-items: center; justify-content: space-between; margin-top: 85px; padding: 27px 0 34px; border-top: 1px solid #e0e4de; color: #818880; font-size: .86rem; }
+@media (max-width: 760px) {
+  .nav, .intro, .steps, .bottomCta, .footer { width: min(100% - 40px, 620px); }
+  .signIn { display: none; }
+  .intro { padding: 78px 0 65px; }
+  .intro h1 { font-size: clamp(3.1rem, 15vw, 4.5rem); }
+  .step { grid-template-columns: 44px 1fr; gap: 14px; min-height: 0; padding: 27px 0; }
+  .step p { grid-column: 2; }
+  .bottomCta { align-items: flex-start; flex-direction: column; margin-top: 62px; padding: 31px 27px; }
+  .footer { align-items: flex-start; flex-direction: column; gap: 8px; margin-top: 62px; }
+}

@@ -2,18 +2,29 @@
 
 # Run this on the Lightsail server as the ubuntu user:
 #   bash scripts/deploy-aws.sh
-# It keeps the application source and PocketBase migrations in GitHub, while
-# the live PocketBase data remains in /home/ubuntu/pocketbase.
+#
+# Production deployments use the main branch. The source and PocketBase
+# migrations live in GitHub; live PocketBase data remains in
+# /home/ubuntu/pocketbase.
 
 set -euo pipefail
 
 APP_DIR="/opt/taskpilot/taskpilot-saas"
 PB_DIR="/home/ubuntu/pocketbase"
-BRANCH="production/aws-api"
+BRANCH="main"
 
 cd "$APP_DIR"
 
 echo "Updating TaskPilot source..."
+GIT_SSH_COMMAND="ssh -i /home/ubuntu/.ssh/taskpilot -o IdentitiesOnly=yes" \
+  git fetch origin "$BRANCH"
+
+if git show-ref --verify --quiet "refs/heads/$BRANCH"; then
+  git checkout "$BRANCH"
+else
+  git checkout --track -b "$BRANCH" "origin/$BRANCH"
+fi
+
 GIT_SSH_COMMAND="ssh -i /home/ubuntu/.ssh/taskpilot -o IdentitiesOnly=yes" \
   git pull --ff-only origin "$BRANCH"
 
