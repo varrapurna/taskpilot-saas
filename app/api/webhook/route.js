@@ -1,11 +1,14 @@
-import { getCredentialsByPhone, getSession, saveSession } from '@/lib/pocketbase';
-import { decrypt } from '@/lib/crypto';
-import { createTaigaClient } from '@/services/taiga';
-import { createWhatsAppClient } from '@/services/whatsapp';
-import { enhanceComment } from '@/services/gemini';
-import PRE_COMMENTS from '@/utils/precomments';
+import { getCredentialsByPhone, getSession, saveSession } from '@/server/database/pocketbase';
+import { decrypt } from '@/server/security/crypto';
+import { createTaigaClient } from '@/server/integrations/taiga';
+import { createWhatsAppClient } from '@/server/integrations/whatsapp';
+import { enhanceComment } from '@/server/integrations/gemini';
+import PRE_COMMENTS from '@/server/whatsapp/precomments';
+import { verifyMetaWebhookSignature } from '@/server/whatsapp/meta-signature';
+import { getMetaWhatsAppConfig } from '@/server/whatsapp/meta-config';
 
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
+const META_APP_SECRET = process.env.META_APP_SECRET;
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -19,7 +22,20 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-  const body = await request.json();
+  const rawBody = await request.text();
+  const signature = request.headers.get('x-hub-signature-256');
+
+  if (!verifyMetaWebhookSignature(rawBody, signature, META_APP_SECRET)) {
+    console.warn('Rejected webhook with an invalid Meta signature.');
+    return new Response('Unauthorized', { status: 401 });
+  }
+
+  let body;
+  try {
+    body = JSON.parse(rawBody);
+  } catch {
+    return new Response('Invalid JSON payload', { status: 400 });
+  }
 
   const entry = body?.entry?.[0];
   const change = entry?.changes?.[0];
@@ -40,10 +56,7 @@ export async function POST(request) {
     } catch (_) {}
 
     if (!cred) {
-      const wa = createWhatsAppClient({
-        phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
-        accessToken: process.env.ACCESS_TOKEN,
-      });
+      const wa = createWhatsAppClient(getMetaWhatsAppConfig());
       await wa.sendMessage(
         `👋 You are not registered yet. Visit ${process.env.NEXT_PUBLIC_SITE_URL} to connect your Taiga account.`,
         from
@@ -55,18 +68,18 @@ export async function POST(request) {
       taigaUsername: cred.taiga_username,
       taigaPassword: decrypt(cred.taiga_password_enc),
       taigaBaseUrl: cred.taiga_base_url,
-      phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
-      accessToken: process.env.ACCESS_TOKEN,
     };
-
-    taiga = createTaigaClient(userConfig, session.taigaToken || null);
-    const wa = createWhatsAppClient(userConfig);
 
     // Load session from PocketBase
     const sessionRecord = await getSession(from);
     session = sessionRecord
       ? { step: sessionRecord.step, ...(sessionRecord.data || {}) }
       : { step: 'idle', tasks: [], taskIndex: 0, currentTask: null };
+
+    // The session holds the cached Taiga access token, so it must be loaded
+    // before creating the Taiga client.
+    taiga = createTaigaClient(userConfig, session.taigaToken || null);
+    const wa = createWhatsAppClient(getMetaWhatsAppConfig());
 
     // Deduplicate: skip if this message was already processed
     if (session.lastMsgId === msgId) {
@@ -282,10 +295,7 @@ export async function POST(request) {
   } catch (err) {
     console.error('❌ Error handling message:', err.message);
     try {
-      const wa = createWhatsAppClient({
-        phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
-        accessToken: process.env.ACCESS_TOKEN,
-      });
+      const wa = createWhatsAppClient(getMetaWhatsAppConfig());
       await wa.sendMessage('Something went wrong. Please try again.', from);
     } catch (_) {}
   } finally {

@@ -1,7 +1,11 @@
 import crypto from 'crypto';
 
 function getMasterKey() {
-  return Buffer.from(process.env.ENCRYPTION_MASTER_KEY, 'hex');
+  const key = process.env.ENCRYPTION_MASTER_KEY;
+  if (!/^[a-f0-9]{64}$/i.test(key || '')) {
+    throw new Error('ENCRYPTION_MASTER_KEY must be exactly 64 hexadecimal characters.');
+  }
+  return Buffer.from(key, 'hex');
 }
 
 export function encrypt(text) {
@@ -14,6 +18,9 @@ export function encrypt(text) {
 
 export function decrypt(encryptedStr) {
   const [ivHex, tagHex, dataHex] = encryptedStr.split(':');
+  if (!ivHex || !tagHex || !dataHex) {
+    throw new Error('Stored credential is not valid encrypted data.');
+  }
   const decipher = crypto.createDecipheriv(
     'aes-256-gcm',
     getMasterKey(),

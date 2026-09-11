@@ -1,10 +1,13 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import styles from './onboard.module.css';
+import styles from '../onboard.module.css';
 
-export default function OnboardPage() {
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '');
+
+export default function TaigaOnboardPage() {
   const router = useRouter();
   const [form, setForm] = useState({
     name: '',
@@ -26,7 +29,7 @@ export default function OnboardPage() {
     setError('');
 
     try {
-      const res = await fetch('/api/register', {
+      const res = await fetch(`${API_BASE_URL}/api/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
@@ -48,9 +51,10 @@ export default function OnboardPage() {
   return (
     <main className={styles.main}>
       <div className={styles.card}>
-        <h1>📋 Connect Your Taiga Account</h1>
+        <Link href="/onboard" className={styles.backLink}>← All integrations</Link>
+        <h1>Connect your Taiga account</h1>
         <p className={styles.subtitle}>
-          Fill in your details below. We&apos;ll verify your Taiga login and you&apos;ll be ready in seconds.
+          We&apos;ll verify your Taiga login and connect it to your WhatsApp number.
         </p>
 
         <form onSubmit={handleSubmit} className={styles.form}>
@@ -60,15 +64,18 @@ export default function OnboardPage() {
             placeholder="e.g. Purnachandra"
             value={form.name}
             onChange={handleChange}
+            autoComplete="name"
             required
           />
 
           <label>WhatsApp Number <span className={styles.hint}>(with country code, no spaces)</span></label>
           <input
             name="phone"
+            inputMode="tel"
             placeholder="e.g. 917569489092"
             value={form.phone}
             onChange={handleChange}
+            autoComplete="tel"
             required
           />
 
@@ -78,6 +85,7 @@ export default function OnboardPage() {
             placeholder="Your Taiga username"
             value={form.taigaUsername}
             onChange={handleChange}
+            autoComplete="username"
             required
           />
 
@@ -88,6 +96,7 @@ export default function OnboardPage() {
             placeholder="Your Taiga password"
             value={form.taigaPassword}
             onChange={handleChange}
+            autoComplete="current-password"
             required
           />
 
@@ -96,13 +105,14 @@ export default function OnboardPage() {
             name="taigaBaseUrl"
             value={form.taigaBaseUrl}
             onChange={handleChange}
+            inputMode="url"
             required
           />
 
           {error && <p className={styles.error}>⚠️ {error}</p>}
 
           <button type="submit" disabled={loading} className={styles.submitBtn}>
-            {loading ? 'Connecting...' : 'Connect & Activate'}
+            {loading ? 'Connecting...' : 'Connect Taiga'}
           </button>
         </form>
       </div>

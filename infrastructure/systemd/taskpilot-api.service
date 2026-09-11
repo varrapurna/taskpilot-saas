@@ -1,0 +1,17 @@
+[Unit]
+Description=TaskPilot API
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/taskpilot/taskpilot-saas
+Environment=NODE_ENV=production
+Environment=PORT=3000
+EnvironmentFile=/etc/taskpilot/taskpilot-api.env
+ExecStart=/usr/bin/npm run start
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
