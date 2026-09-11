@@ -1,54 +1,94 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import AdminDashboard from '../_components/AdminDashboard';
+import BillingPanel from '../_components/BillingPanel';
+import SignOutButton from '../_components/SignOutButton';
+import { getAdminOverview } from '@/server/admin/overview';
+import { getAuthenticatedClient } from '@/server/auth/account';
+import { getBillingSummaryForUser, startTrialForUser } from '@/server/billing/subscriptions';
+import { getIntegrationStatusForUser } from '@/server/database/pocketbase';
 import styles from './dashboard.module.css';
 
-export default async function DashboardPage({ searchParams }) {
-  const { phone = '', name = 'there' } = await searchParams;
+export default async function DashboardPage() {
+  const client = await getAuthenticatedClient();
+  if (!client) redirect('/account/login');
+  if (client.record.role === 'admin') {
+    const overview = await getAdminOverview();
+    return <AdminDashboard admin={client.record} overview={overview} />;
+  }
 
-  const waLink = `https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.replace(/\D/g, '')}?text=tasks`;
+  const [integrations] = await Promise.all([
+    getIntegrationStatusForUser(client.record.id),
+    startTrialForUser(client.record.id),
+  ]);
+  const billing = await getBillingSummaryForUser(client.record.id);
+  const waNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.replace(/\D/g, '');
+  const waLink = waNumber ? `https://wa.me/${waNumber}?text=tasks` : null;
 
   return (
     <main className={styles.main}>
-      <div className={styles.card}>
-        <div className={styles.successBadge}>✅ You&apos;re all set!</div>
-        <h1>Welcome, {decodeURIComponent(name)}!</h1>
-        <p className={styles.subtitle}>
-          Your Taiga account is connected. You can now manage your tasks from WhatsApp.
-        </p>
+      <header className={styles.header}>
+        <Link href="/dashboard" className={styles.brand}>Task<span>Pilot</span></Link>
+        <div className={styles.headerActions}>
+          <Link href="/onboard" className={styles.headerLink}>Integrations</Link>
+          <SignOutButton className={styles.signOut} />
+        </div>
+      </header>
 
-        <div className={styles.infoBox}>
-          <h2>📱 Start using TaskPilot</h2>
-          <p>Send a WhatsApp message to:</p>
-          <div className={styles.phoneNumber}>{process.env.NEXT_PUBLIC_WHATSAPP_NUMBER}</div>
-          <p>Type <strong>tasks</strong> to see your open Taiga tasks.</p>
-          <a href={waLink} target="_blank" rel="noopener noreferrer" className={styles.waButton}>
-            💬 Open WhatsApp Chat
-          </a>
+      <section className={styles.content}>
+        <div className={styles.hero}>
+          <div>
+            <p className={styles.eyebrow}>Your work, inside WhatsApp</p>
+            <h1>Hello, {client.record.name || 'there'}.</h1>
+            <p>Connect your workspace once, then handle quick work updates from the WhatsApp chat you already use.</p>
+          </div>
+          <div className={styles.accountChip}><span>{client.record.name?.charAt(0)?.toUpperCase() || 'T'}</span><div><strong>{client.record.name || 'TaskPilot user'}</strong><small>{client.record.email}</small></div></div>
         </div>
 
-        <div className={styles.commandsBox}>
-          <h2>📖 Commands</h2>
-          <ul>
-            <li><strong>tasks</strong> — Load your open tasks</li>
-            <li><strong>1</strong> — Post a comment on current task</li>
-            <li><strong>2</strong> — Change task or story status</li>
-            <li><strong>3</strong> — Next task</li>
-            <li><strong>4</strong> — Previous task</li>
-            <li><strong>pre</strong> — Use a pre-loaded comment template</li>
-            <li><strong>end</strong> — End the session</li>
-            <li><strong>0</strong> — Go back (from any sub-menu)</li>
-          </ul>
-        </div>
+        <section className={styles.integrationGrid} aria-label="Your integrations">
+          <article className={styles.integrationCard}>
+            <div className={styles.cardTop}><span className={styles.icon}>✓</span><span className={integrations.taigaConnected ? styles.connected : styles.notConnected}>{integrations.taigaConnected ? 'Connected' : 'Not connected'}</span></div>
+            <h2>Taiga</h2>
+            <p>{integrations.taigaConnected ? 'Your Taiga tasks are ready to manage from WhatsApp.' : 'Connect Taiga to see tasks, add comments, and update status from WhatsApp.'}</p>
+            <Link href="/onboard/taiga" className={styles.cardAction}>{integrations.taigaConnected ? 'Manage Taiga connection' : 'Connect Taiga'} <span aria-hidden="true">→</span></Link>
+          </article>
+          <article className={styles.integrationCard}>
+            <div className={styles.cardTop}><span className={styles.icon}>M</span><span className={styles.soon}>Coming later</span></div>
+            <h2>MH Connekt</h2>
+            <p>Timesheets, daily summaries, and reminders will be added after the account and billing work is complete.</p>
+            <span className={styles.mutedAction}>Setup will be available later</span>
+          </article>
+        </section>
 
-        {phone && (
-          <p className={styles.phoneNote}>
-            Registered number: <strong>+{phone}</strong>
-          </p>
-        )}
+        <section className={styles.workGrid}>
+          <article className={styles.whatsappPanel}>
+            <p className={styles.eyebrow}>Start in WhatsApp</p>
+            <h2>{integrations.taigaConnected ? 'Your Taiga chat is ready.' : 'Connect Taiga to start.'}</h2>
+            <p>{integrations.taigaConnected ? 'Open the TaskPilot WhatsApp chat and type “tasks” to see your open work.' : 'Your WhatsApp number is linked during the Taiga connection. There is no separate WhatsApp setup.'}</p>
+            {integrations.taigaConnected && waLink ? <a href={waLink} target="_blank" rel="noopener noreferrer" className={styles.whatsappButton}>Open WhatsApp chat</a> : <Link href="/onboard/taiga" className={styles.whatsappButton}>Connect Taiga</Link>}
+          </article>
 
-        <Link href="/onboard" className={styles.updateLink}>
-          Update Taiga credentials
-        </Link>
-      </div>
+          <article className={styles.commandsPanel}>
+            <p className={styles.eyebrow}>WhatsApp guide</p>
+            <h2>Simple commands</h2>
+            <dl>
+              <div><dt>tasks</dt><dd>See your open Taiga tasks</dd></div>
+              <div><dt>1</dt><dd>Add a comment to the current task</dd></div>
+              <div><dt>2</dt><dd>Change a task or story status</dd></div>
+              <div><dt>end</dt><dd>Finish the current session</dd></div>
+            </dl>
+          </article>
+        </section>
+
+        <section className={styles.lowerGrid}>
+          <article className={styles.accountPanel}>
+            <p className={styles.eyebrow}>Account</p>
+            <h2>Your profile</h2>
+            <p>Signed in as <strong>{client.record.email}</strong>. Your work connections belong to this TaskPilot account.</p>
+          </article>
+          <BillingPanel billing={billing} />
+        </section>
+      </section>
     </main>
   );
 }

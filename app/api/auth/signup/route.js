@@ -19,8 +19,10 @@ export async function POST(request) {
     await createClientAccount({ name: cleanName, email: cleanEmail, password });
     return authJson(request, { success: true }, 201);
   } catch (error) {
-    const message = error?.response?.data?.email?.message;
-    if (message) return authJson(request, { error: 'An account with this email already exists.' }, 409);
+    const emailError = error?.response?.data?.data?.email || error?.response?.data?.email;
+    if (emailError?.code === 'validation_not_unique' || emailError?.message) {
+      return authJson(request, { error: 'An account with this email already exists.' }, 409);
+    }
     console.error('Signup error:', error?.message);
     return authJson(request, { error: 'We could not create your account. Please try again.' }, 500);
   }

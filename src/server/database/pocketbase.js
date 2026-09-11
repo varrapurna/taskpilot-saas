@@ -37,6 +37,16 @@ export async function getCredentialsByPhone(whatsappNumber) {
   return pb.collection('credentials').getFirstListItem(phoneFilter(whatsappNumber));
 }
 
+export async function getIntegrationStatusForUser(userId) {
+  const pb = await createAdminClient();
+  try {
+    await pb.collection('credentials').getFirstListItem(`user = "${userId}"`);
+    return { taigaConnected: true };
+  } catch {
+    return { taigaConnected: false };
+  }
+}
+
 export async function getSession(whatsappNumber) {
   const pb = await createAdminClient();
   return findSession(pb, whatsappNumber);
@@ -52,17 +62,21 @@ export async function saveSession(whatsappNumber, step, data) {
   return pb.collection('sessions').create(payload);
 }
 
-export async function saveCredentials(phone, payload) {
+export async function saveCredentials(phone, userId, payload) {
   validateWhatsAppNumber(phone);
   const pb = await createAdminClient();
   let existing = null;
   try {
     existing = await pb.collection('credentials').getFirstListItem(phoneFilter(phone));
   } catch (_) {}
-  if (existing) {
+  if (existing && existing.user !== userId) {
     const error = new Error('This WhatsApp number is already connected.');
     error.code = 'WHATSAPP_ALREADY_CONNECTED';
     throw error;
+  }
+
+  if (existing) {
+    return pb.collection('credentials').update(existing.id, payload);
   }
   return pb.collection('credentials').create(payload);
 }
