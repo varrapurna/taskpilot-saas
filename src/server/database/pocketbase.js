@@ -37,8 +37,8 @@ export async function getCredentialsByPhone(whatsappNumber) {
   return pb.collection('credentials').getFirstListItem(phoneFilter(whatsappNumber));
 }
 
-export async function getIntegrationStatusForUser(userId) {
-  const pb = await createAdminClient();
+export async function getIntegrationStatusForUser(userId, existingAdminClient) {
+  const pb = existingAdminClient || await createAdminClient();
   try {
     await pb.collection('credentials').getFirstListItem(`user = "${userId}"`);
     return { taigaConnected: true };

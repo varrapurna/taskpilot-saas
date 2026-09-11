@@ -72,6 +72,7 @@ export async function getAuthenticatedClient() {
     const record = await admin.collection('users').getOne(auth.record.id);
     if (!record.verified) return null;
     return {
+      admin,
       record: {
         id: record.id,
         name: record.name,

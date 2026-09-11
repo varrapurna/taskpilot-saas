@@ -8,5 +8,5 @@ export async function GET(request) {
   const client = await getAuthenticatedClient();
   if (!client) return authJson(request, { error: 'Please log in.' }, 401);
 
-  return authJson(request, { billing: await getBillingSummaryForUser(client.record.id) });
+  return authJson(request, { billing: await getBillingSummaryForUser(client.record.id, client.admin) });
 }
