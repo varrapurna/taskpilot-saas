@@ -7,6 +7,11 @@ export const AUTH_COOKIE = 'taskpilot_auth';
 export const ROLE_USER = 'user';
 export const ROLE_ADMIN = 'admin';
 
+function getAuthCookieDomain() {
+  const domain = process.env.AUTH_COOKIE_DOMAIN?.trim();
+  return process.env.NODE_ENV === 'production' && domain ? domain : undefined;
+}
+
 function getPocketBaseUrl() {
   if (!process.env.POCKETBASE_URL) {
     throw new Error('POCKETBASE_URL is not configured.');
@@ -96,6 +101,7 @@ export function setAuthCookie(response, token) {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
+    domain: getAuthCookieDomain(),
     maxAge: 60 * 60 * 24 * 7,
   });
   return response;
@@ -109,6 +115,7 @@ export function clearAuthCookie(response) {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
+    domain: getAuthCookieDomain(),
     maxAge: 0,
   });
   return response;
