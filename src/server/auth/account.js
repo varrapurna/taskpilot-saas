@@ -1,6 +1,5 @@
 import PocketBase from 'pocketbase';
 import { cookies } from 'next/headers';
-import { startTrialForUser } from '@/server/billing/subscriptions';
 import { createAdminClient } from '@/server/database/pocketbase';
 
 export const AUTH_COOKIE = 'taskpilot_auth';
@@ -44,7 +43,6 @@ export async function createClientAccount({ name, email, password }) {
     role: ROLE_USER,
   });
 
-  await startTrialForUser(record.id);
   await pb.collection('users').requestVerification(email);
   return record;
 }
