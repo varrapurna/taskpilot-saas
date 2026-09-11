@@ -31,8 +31,10 @@ function getSubscriptionUpdate(eventType, subscription, payment, billingSubscrip
 
   if (eventType === 'subscription.authenticated') {
     update.status = hasActiveTrial(billingSubscription) ? 'trialing' : 'pending_authorisation';
+    update.razorpay_autopay_accepted = true;
   } else if (eventType === 'subscription.activated' || eventType === 'subscription.charged') {
     update.status = 'active';
+    update.razorpay_autopay_accepted = true;
   } else if (eventType === 'subscription.pending' || eventType === 'subscription.halted') {
     update.status = 'past_due';
   } else if (eventType === 'subscription.cancelled') {

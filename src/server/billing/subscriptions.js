@@ -33,6 +33,7 @@ function toBillingSummary(record) {
     currentPeriodEndsAt: record.current_period_ends_at || null,
     cancelAtPeriodEnd: Boolean(record.cancel_at_period_end),
     subscriptionReady: Boolean(record.razorpay_subscription_id),
+    autopayAccepted: Boolean(record.razorpay_autopay_accepted),
   };
 }
 
@@ -62,6 +63,7 @@ export async function startTrialForUser(userId) {
     trial_started_at: trialStartedAt.toISOString(),
     trial_ends_at: trialEndsAt.toISOString(),
     cancel_at_period_end: false,
+    razorpay_autopay_accepted: false,
   });
 }
 
