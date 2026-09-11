@@ -10,7 +10,7 @@ export async function GET(request) {
 
   const integrations = await getIntegrationStatusForUser(client.record.id);
   return authJson(request, {
-    user: { id: client.record.id, name: client.record.name, email: client.record.email },
+    user: { id: client.record.id, name: client.record.name, email: client.record.email, role: client.record.role },
     integrations: { taiga: integrations.taigaConnected, mhConnekt: false },
   });
 }
