@@ -40,6 +40,9 @@ sudo install -D -m 644 \
   "$APP_DIR/infrastructure/systemd/taskpilot-api.service" \
   /etc/systemd/system/taskpilot-api.service
 
+echo "Updating Nginx API routes..."
+bash "$APP_DIR/scripts/configure-nginx.sh"
+
 echo "Syncing PocketBase migrations..."
 sudo install -d -m 755 "$PB_DIR/pb_migrations"
 sudo cp -a "$PB_MIGRATIONS_DIR/." "$PB_DIR/pb_migrations/"
@@ -47,6 +50,7 @@ sudo cp -a "$PB_MIGRATIONS_DIR/." "$PB_DIR/pb_migrations/"
 echo "Restarting services..."
 sudo systemctl daemon-reload
 sudo systemctl restart pocketbase
-sudo systemctl enable --now taskpilot-api
+sudo systemctl enable taskpilot-api
+sudo systemctl restart taskpilot-api
 
 echo "Deployment complete. Check https://api.taskpilotapp.online/api/health"
