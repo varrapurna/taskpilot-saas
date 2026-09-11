@@ -88,7 +88,21 @@ export default function AccountPage() {
   }, [config, mode, router]);
 
   if (mode === 'verify') {
-    return <AccountShell><Link className={styles.brand} href="/">Task<span>Pilot</span></Link><h1>Verify your email</h1>{!token && <p className={styles.error}>This verification link is incomplete.</p>}{message && <p className={styles.success}>{message}</p>}{error && <p className={styles.error}>{error}</p>}<p className={styles.links}><Link href="/account/login">Go to sign in</Link></p></AccountShell>;
+    const verified = Boolean(message && !error);
+    return <AccountShell>
+      <Link className={styles.brand} href="/">Task<span>Pilot</span></Link>
+      <p className={styles.eyebrow}>Email verification</p>
+      <h1>{verified ? 'Your email is verified' : 'Verify your email'}</h1>
+      {!token && <p className={styles.error}>This verification link is incomplete.</p>}
+      {token && !verified && !error && <p className={styles.intro}>We are securely verifying your email address.</p>}
+      {verified && <>
+        <p className={styles.intro}>Your TaskPilot account is ready. You can close this tab or sign in now to connect your workspace.</p>
+        <Link href="/account/login" className={styles.submitLink}>Sign in to TaskPilot</Link>
+      </>}
+      {message && <p className={styles.success}>{message}</p>}
+      {error && <p className={styles.error}>{error}</p>}
+      {!verified && <p className={styles.links}><Link href="/account/login">Go to sign in</Link></p>}
+    </AccountShell>;
   }
   if (!config) return null;
 
