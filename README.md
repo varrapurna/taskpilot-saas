@@ -4,9 +4,9 @@ TaskPilot brings Taiga task work into WhatsApp.
 
 ## Where to make changes
 
-- **Website screens and design:** `app/`
+- **Website screens and design:** `app/(marketing)/`, `app/(auth)/`, or `app/(product)/`
 - **Backend API endpoints:** `app/api/`
-- **Backend business code:** `server/`
+- **Backend business code:** `src/server/`
 - **PocketBase migrations:** `database/pocketbase/migrations/`
 - **Images and public files:** `public/`
 - **AWS and Nginx setup:** `infrastructure/`

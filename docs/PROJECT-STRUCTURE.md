@@ -12,22 +12,26 @@ taskpilot/
 
 ```text
 taskpilot-saas/
-|- app/                         # FRONTEND pages and layouts
-|  |- page.js                  # Home page: /
-|  |- account/                 # Create-account and sign-in screens
-|  |- dashboard/               # Signed-in dashboard screen
-|  |- onboard/                 # Taiga connection screens
-|  `- api/                     # BACKEND HTTP endpoints: /api/*
+|- app/                         # NEXT.JS ROUTES - this folder is required by Next.js
+|  |- (marketing)/             # FRONTEND public pages (the folder name is not in the URL)
+|  |  |- page.js              # Home page: /
+|  |  `- how-it-works/       # Public explanation page: /how-it-works
+|  |- (auth)/account/         # FRONTEND create-account and sign-in screens: /account/*
+|  |- (product)/              # FRONTEND signed-in product screens
+|  |  |- dashboard/          # /dashboard
+|  |  `- onboard/            # /onboard and /onboard/taiga
+|  `- api/                    # BACKEND HTTP endpoints: /api/*
 |     |- auth/                # Sign-up, sign-in, reset-password, verify-email
 |     |- register/            # Taiga/WhatsApp connection endpoint
 |     `- webhook/             # WhatsApp webhook endpoint
-|- server/                      # BACKEND code - never UI components
-|  |- auth/                    # Account, session, cookie helpers
-|  |- database/                # PocketBase data access
-|  |- http/                    # API response and CORS helpers
-|  |- integrations/            # Taiga, WhatsApp, and Gemini clients
-|  |- security/                # Encryption helpers
-|  `- whatsapp/                # Meta config, signature check, saved replies
+|- src/
+|  `- server/                  # BACKEND business code - never UI components
+|     |- auth/                # Account, session, cookie helpers
+|     |- database/            # PocketBase data access
+|     |- http/                # API response and CORS helpers
+|     |- integrations/        # Taiga, WhatsApp, and Gemini clients
+|     |- security/            # Encryption helpers
+|     `- whatsapp/            # Meta config, signature check, saved replies
 |- database/
 |  `- pocketbase/migrations/   # Versioned database changes deployed to AWS
 |- public/                      # FRONTEND images and static files
@@ -42,13 +46,15 @@ taskpilot-saas/
 
 | If you are adding... | Put it here |
 | --- | --- |
-| A page or a visible screen | `app/` |
-| A page style file | Beside its page in `app/` |
-| A button, form, or UI component | `app/` in the relevant feature folder |
+| A public marketing page | `app/(marketing)/` |
+| A create-account or sign-in screen | `app/(auth)/account/` |
+| A signed-in product page | `app/(product)/` |
+| A page style file | Beside its page in the matching route folder |
+| A button, form, or UI component | In a `_components/` folder beside the page that uses it |
 | A new HTTP API endpoint | `app/api/<feature>/route.js` |
-| Database or PocketBase code | `server/database/` |
-| Taiga, WhatsApp, or AI integration code | `server/integrations/` |
-| Password, encryption, CORS, or signature code | `server/security/`, `server/http/`, or `server/whatsapp/` |
+| Database or PocketBase code | `src/server/database/` |
+| Taiga, WhatsApp, or AI integration code | `src/server/integrations/` |
+| Password, encryption, CORS, or signature code | `src/server/security/`, `src/server/http/`, or `src/server/whatsapp/` |
 | A database schema change | `database/pocketbase/migrations/` |
 | An image | `public/images/` |
 | AWS, Nginx, or service configuration | `infrastructure/` |
