@@ -17,6 +17,11 @@ function dateFromRecord(value) {
 
 function billingStatusFor(record) {
   if (!record) return null;
+  // A legacy record may have been created before the customer approved
+  // Razorpay. It is not a real trial and must never consume trial time.
+  if (record.status === 'trialing' && !record.razorpay_autopay_accepted) {
+    return 'not_started';
+  }
   const trialEndsAt = dateFromRecord(record.trial_ends_at);
   if (record.status === 'trialing' && trialEndsAt && trialEndsAt <= new Date()) {
     return 'expired';
@@ -51,17 +56,11 @@ export async function startTrialForUser(userId) {
   const existing = await getBillingSubscription(userId);
   if (existing) return existing;
 
-  const trialStartedAt = new Date();
-  const trialEndsAt = new Date(trialStartedAt);
-  trialEndsAt.setDate(trialEndsAt.getDate() + TRIAL_DAYS);
-
   const pb = await createAdminClient();
   return pb.collection('billing_subscriptions').create({
     user: userId,
     plan: 'starter_monthly',
-    status: 'trialing',
-    trial_started_at: trialStartedAt.toISOString(),
-    trial_ends_at: trialEndsAt.toISOString(),
+    status: 'pending_authorisation',
     cancel_at_period_end: false,
     razorpay_autopay_accepted: false,
   });
@@ -124,9 +123,13 @@ export async function createRazorpaySubscriptionForUser(user) {
     };
   }
 
-  const trialEndsAt = dateFromRecord(subscription.trial_ends_at);
   const nowInSeconds = Math.floor(Date.now() / 1000);
-  const startAt = trialEndsAt ? Math.floor(trialEndsAt.getTime() / 1000) : null;
+  const activeTrialEndsAt = subscription.razorpay_autopay_accepted
+    && billingStatusFor(subscription) === 'trialing'
+    ? dateFromRecord(subscription.trial_ends_at)
+    : null;
+  const plannedTrialEndsAt = activeTrialEndsAt || new Date(Date.now() + TRIAL_DAYS * 86_400_000);
+  const startAt = Math.floor(plannedTrialEndsAt.getTime() / 1000);
   const payload = {
     plan_id: config.planId,
     total_count: config.totalBillingCycles,
@@ -148,7 +151,9 @@ export async function createRazorpaySubscriptionForUser(user) {
   const razorpaySubscription = await razorpayRequest('/subscriptions', payload, config);
   const pb = await createAdminClient();
   await pb.collection('billing_subscriptions').update(subscription.id, {
-    status: billingStatusFor(subscription) === 'trialing' ? 'trialing' : 'pending_authorisation',
+    status: subscription.razorpay_autopay_accepted && billingStatusFor(subscription) === 'trialing'
+      ? 'trialing'
+      : 'pending_authorisation',
     razorpay_subscription_id: razorpaySubscription.id,
     razorpay_plan_id: config.planId,
   });

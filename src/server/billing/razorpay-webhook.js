@@ -3,6 +3,8 @@ import 'server-only';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { createAdminClient } from '@/server/database/pocketbase';
 
+const TRIAL_DAYS = 7;
+
 function safeEqual(left, right) {
   const leftBuffer = Buffer.from(left || '', 'utf8');
   const rightBuffer = Buffer.from(right || '', 'utf8');
@@ -20,6 +22,16 @@ function hasActiveTrial(billingSubscription) {
   return !Number.isNaN(trialEnd.getTime()) && trialEnd > new Date();
 }
 
+function newTrialWindow() {
+  const startedAt = new Date();
+  const endsAt = new Date(startedAt);
+  endsAt.setDate(endsAt.getDate() + TRIAL_DAYS);
+  return {
+    trial_started_at: startedAt.toISOString(),
+    trial_ends_at: endsAt.toISOString(),
+  };
+}
+
 function getSubscriptionUpdate(eventType, subscription, payment, billingSubscription) {
   const update = {
     razorpay_customer_id: subscription.customer_id || '',
@@ -30,8 +42,12 @@ function getSubscriptionUpdate(eventType, subscription, payment, billingSubscrip
   if (payment?.id) update.last_payment_id = payment.id;
 
   if (eventType === 'subscription.authenticated') {
-    update.status = hasActiveTrial(billingSubscription) ? 'trialing' : 'pending_authorisation';
+    // The free trial begins only when Razorpay confirms auto-pay approval.
+    update.status = 'trialing';
     update.razorpay_autopay_accepted = true;
+    if (!billingSubscription?.razorpay_autopay_accepted || !hasActiveTrial(billingSubscription)) {
+      Object.assign(update, newTrialWindow());
+    }
   } else if (eventType === 'subscription.activated' || eventType === 'subscription.charged') {
     update.status = 'active';
     update.razorpay_autopay_accepted = true;
