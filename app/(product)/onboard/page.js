@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import SignOutButton from '../_components/SignOutButton';
 import styles from './onboard.module.css';
 
 const integrations = [
@@ -13,6 +14,7 @@ const integrations = [
     action: 'Connect Taiga',
     status: 'Available',
     available: true,
+    tone: 'taiga',
   },
   {
     name: 'MH Connekt',
@@ -23,15 +25,22 @@ const integrations = [
     action: 'Setup coming next',
     status: 'Next integration',
     available: false,
+    tone: 'mhConnekt',
   },
 ];
 
 export default function OnboardPage() {
   return (
     <main className={styles.selectorMain}>
-      <section className={styles.selectorShell}>
+      <header className={styles.selectorHeader}>
         <Link href="/dashboard" className={styles.brand}>Task<span>Pilot</span></Link>
+        <div className={styles.setupHeaderActions}>
+          <Link href="/dashboard" className={styles.headerLink}>Dashboard</Link>
+          <SignOutButton className={styles.signOut} />
+        </div>
+      </header>
 
+      <section className={styles.selectorShell}>
         <div className={styles.selectorIntro}>
           <span className={styles.eyebrow}>Connect your workspace</span>
           <h1>Choose the tools you use</h1>
@@ -43,8 +52,8 @@ export default function OnboardPage() {
 
         <div className={styles.integrationGrid}>
           {integrations.map((integration) => (
-            <article className={styles.integrationCard} key={integration.name}>
-              <div className={`${styles.logoPanel} ${!integration.available ? styles.darkLogoPanel : ''}`}>
+            <article className={`${styles.integrationCard} ${integration.tone === 'taiga' ? styles.taigaFeature : styles.mhConnektFeature}`} key={integration.name}>
+              <div className={styles.logoPanel}>
                 <Image
                   src={integration.image}
                   alt={integration.imageAlt}
