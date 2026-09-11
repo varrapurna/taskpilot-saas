@@ -1,6 +1,6 @@
 import { getAuthenticatedClient } from '@/server/auth/account';
 import { getAdminOverview } from '@/server/admin/overview';
-import { getBillingSummaryForUser, startTrialForUser } from '@/server/billing/subscriptions';
+import { getBillingSummaryForUser } from '@/server/billing/subscriptions';
 import { getIntegrationStatusForUser } from '@/server/database/pocketbase';
 import { authJson, authOptions } from '@/server/http/auth-response';
 
@@ -18,11 +18,10 @@ export async function GET(request) {
     });
   }
 
-  const [integrations] = await Promise.all([
-    getIntegrationStatusForUser(client.record.id),
-    startTrialForUser(client.record.id),
+  const [integrations, billing] = await Promise.all([
+    getIntegrationStatusForUser(client.record.id, client.admin),
+    getBillingSummaryForUser(client.record.id, client.admin),
   ]);
-  const billing = await getBillingSummaryForUser(client.record.id);
 
   return authJson(request, {
     role: 'user',

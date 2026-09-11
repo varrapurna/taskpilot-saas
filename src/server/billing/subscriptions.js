@@ -36,8 +36,8 @@ function toBillingSummary(record) {
   };
 }
 
-export async function getBillingSubscription(userId) {
-  const pb = await createAdminClient();
+export async function getBillingSubscription(userId, existingAdminClient) {
+  const pb = existingAdminClient || await createAdminClient();
   try {
     return await pb.collection('billing_subscriptions').getFirstListItem(`user = "${userId}"`);
   } catch (error) {
@@ -158,6 +158,6 @@ export async function createRazorpaySubscriptionForUser(user) {
   };
 }
 
-export async function getBillingSummaryForUser(userId) {
-  return toBillingSummary(await getBillingSubscription(userId));
+export async function getBillingSummaryForUser(userId, existingAdminClient) {
+  return toBillingSummary(await getBillingSubscription(userId, existingAdminClient));
 }
