@@ -5,7 +5,8 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import styles from '../account.module.css';
 
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '');
+const isLocalBrowser = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const API_BASE_URL = isLocalBrowser ? '' : (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '');
 
 const copy = {
   login: { title: 'Welcome back', intro: 'Today is a new day. Sign in to manage your connected workspaces.', submit: 'Sign in' },
@@ -34,6 +35,28 @@ function AccountShell({ children }) {
   return <main className={styles.main}><section className={styles.shell}><div className={styles.formPanel}>{children}</div><VisualPanel /></section></main>;
 }
 
+function PasswordVisibilityIcon({ visible }) {
+  return <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6-9.5-6-9.5-6Z" />
+    <circle cx="12" cy="12" r="2.7" />
+    {!visible && <path d="m3 3 18 18" />}
+  </svg>;
+}
+
+function toggleOnPointerDown(event, setVisible) {
+  event.preventDefault();
+  event.currentTarget.dataset.pointerToggled = 'true';
+  setVisible((visible) => !visible);
+}
+
+function toggleOnClick(event, setVisible) {
+  if (event.currentTarget.dataset.pointerToggled === 'true') {
+    delete event.currentTarget.dataset.pointerToggled;
+    return;
+  }
+  setVisible((visible) => !visible);
+}
+
 export default function AccountPage() {
   const { mode } = useParams();
   const router = useRouter();
@@ -42,8 +65,16 @@ export default function AccountPage() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const config = copy[mode];
   const token = searchParams.get('token');
+
+  useEffect(() => {
+    if (mode === 'login' && searchParams.get('created') === '1') {
+      setMessage('Account created. Check your email and open the verification link before signing in.');
+    }
+  }, [mode, searchParams]);
 
   useEffect(() => {
     if (mode !== 'verify' || !token) return;
@@ -75,7 +106,8 @@ export default function AccountPage() {
     try {
       if (mode === 'signup') {
         await request('signup', form);
-        setMessage('Account created. Check your email and open the verification link.');
+        router.replace('/account/login?created=1');
+        return;
       }
       if (mode === 'login') {
         await request('login', form);
@@ -104,8 +136,8 @@ export default function AccountPage() {
     <form className={styles.form} onSubmit={submit}>
       {mode === 'signup' && <label className={styles.field}><span className={styles.fieldLabel}>Your name</span><input required autoComplete="name" placeholder="Your full name" value={form.name} onChange={update('name')} /></label>}
       {mode !== 'reset' && <label className={styles.field}><span className={styles.fieldLabel}>Email address</span><input required type="email" autoComplete="email" placeholder="you@company.com" value={form.email} onChange={update('email')} /></label>}
-      {mode !== 'forgot' && <label className={styles.field}><span className={styles.fieldTop}><span className={styles.fieldLabel}>Password</span>{mode === 'login' && <Link className={styles.forgot} href="/account/forgot">Forgot password?</Link>}</span><input required type="password" minLength="12" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} placeholder="Enter your password" value={form.password} onChange={update('password')} /></label>}
-      {(mode === 'signup' || mode === 'reset') && <label className={styles.field}><span className={styles.fieldLabel}>Confirm password</span><input required type="password" minLength="12" autoComplete="new-password" placeholder="Confirm your password" value={form.confirmPassword} onChange={update('confirmPassword')} /></label>}
+      {mode !== 'forgot' && <div className={styles.field}><span className={styles.fieldTop}><label className={styles.fieldLabel} htmlFor="account-password">Password</label>{mode === 'login' && <Link className={styles.forgot} href="/account/forgot">Forgot password?</Link>}</span><span className={styles.passwordInput}><input id="account-password" required type={showPassword ? 'text' : 'password'} minLength="12" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} placeholder="Enter your password" value={form.password} onChange={update('password')} /><button className={styles.passwordToggle} type="button" onPointerDown={(event) => toggleOnPointerDown(event, setShowPassword)} onClick={(event) => toggleOnClick(event, setShowPassword)} aria-label={showPassword ? 'Hide password' : 'Show password'}><PasswordVisibilityIcon visible={showPassword} /></button></span></div>}
+      {(mode === 'signup' || mode === 'reset') && <div className={styles.field}><label className={styles.fieldLabel} htmlFor="account-confirm-password">Confirm password</label><span className={styles.passwordInput}><input id="account-confirm-password" required type={showConfirmPassword ? 'text' : 'password'} minLength="12" autoComplete="new-password" placeholder="Confirm your password" value={form.confirmPassword} onChange={update('confirmPassword')} /><button className={styles.passwordToggle} type="button" onPointerDown={(event) => toggleOnPointerDown(event, setShowConfirmPassword)} onClick={(event) => toggleOnClick(event, setShowConfirmPassword)} aria-label={showConfirmPassword ? 'Hide password confirmation' : 'Show password confirmation'}><PasswordVisibilityIcon visible={showConfirmPassword} /></button></span></div>}
       <button className={styles.submit} disabled={loading}>{loading ? 'Please wait...' : config.submit}</button>
     </form>
     {error && <p className={styles.error}>{error}</p>}

@@ -2,12 +2,13 @@ import axios from 'axios';
 import { encrypt } from '@/server/security/crypto';
 import { saveCredentials } from '@/server/database/pocketbase';
 import { getCorsHeaders } from '@/server/http/cors';
+import { getAuthenticatedClient } from '@/server/auth/account';
 
 const TAIGA_API_BASE_URL = 'https://api.taiga.io/api/v1';
 
-function validateRegistration({ name, phone, taigaUsername, taigaPassword, taigaBaseUrl }) {
+function validateRegistration({ phone, taigaUsername, taigaPassword, taigaBaseUrl }) {
   if (
-    ![name, phone, taigaUsername, taigaPassword, taigaBaseUrl].every(
+    ![phone, taigaUsername, taigaPassword, taigaBaseUrl].every(
       (value) => typeof value === 'string' && value.trim()
     )
   ) {
@@ -19,7 +20,7 @@ function validateRegistration({ name, phone, taigaUsername, taigaPassword, taiga
     return { error: 'Enter a valid WhatsApp number with country code.' };
   }
 
-  if (name.trim().length > 100 || taigaUsername.trim().length > 254) {
+  if (taigaUsername.trim().length > 254) {
     return { error: 'One of the provided fields is too long.' };
   }
 
@@ -38,7 +39,6 @@ function validateRegistration({ name, phone, taigaUsername, taigaPassword, taiga
 
   return {
     data: {
-      name: name.trim(),
       phone: normalizedPhone,
       taigaUsername: taigaUsername.trim(),
       taigaPassword,
@@ -63,12 +63,17 @@ export async function POST(request) {
   };
 
   try {
+    const client = await getAuthenticatedClient();
+    if (!client) {
+      return Response.json({ error: 'Please sign in before connecting Taiga.' }, { status: 401, ...responseOptions });
+    }
+
     const registration = validateRegistration(await request.json());
     if (registration.error) {
       return Response.json({ error: registration.error }, { status: 400, ...responseOptions });
     }
 
-    const { name, phone, taigaUsername, taigaPassword, taigaBaseUrl } = registration.data;
+    const { phone, taigaUsername, taigaPassword, taigaBaseUrl } = registration.data;
 
     try {
       await axios.post(`${taigaBaseUrl}/auth`, {
@@ -83,12 +88,13 @@ export async function POST(request) {
       );
     }
 
-    await saveCredentials(phone, {
+    await saveCredentials(phone, client.record.id, {
       whatsapp_number: phone,
-      display_name: name,
+      display_name: client.record.name,
       taiga_username: taigaUsername,
       taiga_password_enc: encrypt(taigaPassword),
       taiga_base_url: taigaBaseUrl,
+      user: client.record.id,
     });
 
     return Response.json({ success: true, phone }, responseOptions);

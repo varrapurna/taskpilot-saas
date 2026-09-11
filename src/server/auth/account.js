@@ -1,8 +1,11 @@
 import PocketBase from 'pocketbase';
 import { cookies } from 'next/headers';
+import { startTrialForUser } from '@/server/billing/subscriptions';
 import { createAdminClient } from '@/server/database/pocketbase';
 
 export const AUTH_COOKIE = 'taskpilot_auth';
+export const ROLE_USER = 'user';
+export const ROLE_ADMIN = 'admin';
 
 function getPocketBaseUrl() {
   if (!process.env.POCKETBASE_URL) {
@@ -33,8 +36,10 @@ export async function createClientAccount({ name, email, password }) {
     password,
     passwordConfirm: password,
     emailVisibility: false,
+    role: ROLE_USER,
   });
 
+  await startTrialForUser(record.id);
   await pb.collection('users').requestVerification(email);
   return record;
 }
@@ -54,10 +59,33 @@ export async function getAuthenticatedClient() {
   try {
     const auth = await pb.collection('users').authRefresh();
     if (!auth.record.verified) return null;
-    return { record: auth.record, token: auth.token };
+
+    // Read the canonical account through the private server client. The role
+    // is intentionally hidden from public PocketBase responses, so a browser
+    // can never claim to be an administrator by changing request data.
+    const admin = await createAdminClient();
+    const record = await admin.collection('users').getOne(auth.record.id);
+    if (!record.verified) return null;
+    return {
+      record: {
+        id: record.id,
+        name: record.name,
+        email: record.email,
+        verified: Boolean(record.verified),
+        role: record.role === ROLE_ADMIN ? ROLE_ADMIN : ROLE_USER,
+      },
+      token: auth.token,
+    };
   } catch {
     return null;
   }
+}
+
+export async function recordSuccessfulLogin(userId) {
+  const pb = await createAdminClient();
+  await pb.collection('users').update(userId, {
+    last_login_at: new Date().toISOString(),
+  });
 }
 
 export function setAuthCookie(response, token) {

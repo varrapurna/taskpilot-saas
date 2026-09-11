@@ -27,8 +27,22 @@
 .forgot { color: #c63e47; text-decoration: none; }
 .forgot:hover, .links a:hover { text-decoration: underline; }
 .field input { box-sizing: border-box; width: 100%; min-height: 54px; border: 1px solid #dfe2dd; border-radius: 9px; padding: 0 16px; color: #151a16; background: #fff; font: inherit; transition: border-color .15s, box-shadow .15s; }
+.passwordInput { position: relative; display: block; }
+.passwordInput input { padding-right: 54px; }
+.passwordToggle { position: absolute; top: 50%; right: 11px; display: grid; width: 31px; height: 31px; place-items: center; border: 0; border-radius: 6px; padding: 6px; color: #941d30; background: transparent; cursor: pointer; transform: translateY(-50%); }
+.passwordToggle svg { width: 18px; height: 18px; }
+.passwordToggle:hover, .passwordToggle:focus-visible { color: #6f1020; background: #fff0f1; outline: 0; }
 .field input::placeholder { color: #a1a59f; }
 .field input:focus { border-color: #273128; outline: 0; box-shadow: 0 0 0 3px rgba(38, 48, 39, .1); }
+.field input:-webkit-autofill,
+.field input:-webkit-autofill:hover,
+.field input:-webkit-autofill:focus,
+.field input:-webkit-autofill:active {
+  -webkit-text-fill-color: #151a16;
+  -webkit-box-shadow: 0 0 0 1000px #fff inset;
+  box-shadow: 0 0 0 1000px #fff inset;
+  caret-color: #151a16;
+}
 .submit { min-height: 54px; margin-top: 8px; border: 0; border-radius: 9px; padding: 0 18px; color: #fff; background: #202a22; font: inherit; font-weight: 750; cursor: pointer; transition: transform .15s, background .15s; }
 .submit:hover:not(:disabled) { background: #111712; transform: translateY(-1px); }
 .submit:disabled { cursor: wait; opacity: .68; }
