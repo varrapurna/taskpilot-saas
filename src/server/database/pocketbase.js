@@ -106,3 +106,28 @@ export async function saveCredentials(phone, userId, payload) {
   }
   return pb.collection('credentials').create(payload);
 }
+
+export async function updateCredentialsForUser(phone, userId, payload, existingAdminClient) {
+  validateWhatsAppNumber(phone);
+  const pb = existingAdminClient || await createAdminClient();
+  const current = await getCredentialsForUser(userId, pb);
+  if (!current) {
+    const error = new Error('No Taiga connection exists for this account.');
+    error.code = 'TAIGA_NOT_CONNECTED';
+    throw error;
+  }
+
+  if (current.whatsapp_number !== phone) {
+    let phoneOwner = null;
+    try {
+      phoneOwner = await pb.collection('credentials').getFirstListItem(phoneFilter(phone));
+    } catch (_) {}
+    if (phoneOwner && phoneOwner.user !== userId) {
+      const error = new Error('This WhatsApp number is already connected.');
+      error.code = 'WHATSAPP_ALREADY_CONNECTED';
+      throw error;
+    }
+  }
+
+  return pb.collection('credentials').update(current.id, payload);
+}

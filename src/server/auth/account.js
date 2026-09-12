@@ -85,6 +85,18 @@ export async function getAuthenticatedClient() {
   }
 }
 
+export async function verifyCurrentPassword(user, password) {
+  if (!user?.id || !user?.email || !validatePassword(password)) return false;
+
+  try {
+    const pb = createPublicClient();
+    const auth = await pb.collection('users').authWithPassword(user.email, password);
+    return auth.record?.id === user.id;
+  } catch {
+    return false;
+  }
+}
+
 export async function recordSuccessfulLogin(userId) {
   const pb = await createAdminClient();
   await pb.collection('users').update(userId, {
