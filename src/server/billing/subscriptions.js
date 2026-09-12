@@ -109,9 +109,56 @@ async function razorpayRequest(path, payload, config) {
   return body;
 }
 
+function shouldReplacePendingSubscription(subscription, config) {
+  return Boolean(
+    subscription?.razorpay_subscription_id
+    && subscription.razorpay_plan_id
+    && subscription.razorpay_plan_id !== config.planId
+    && !subscription.razorpay_autopay_accepted
+    && ['pending_authorisation', 'trialing'].includes(subscription.status)
+  );
+}
+
+async function cancelPendingRazorpaySubscription(subscription, config) {
+  const subscriptionId = subscription.razorpay_subscription_id;
+  if (!/^sub_[A-Za-z0-9]+$/.test(subscriptionId || '')) {
+    const error = new Error('The saved Razorpay subscription ID is invalid.');
+    error.code = 'RAZORPAY_SUBSCRIPTION_INVALID';
+    throw error;
+  }
+
+  await razorpayRequest(`/subscriptions/${subscriptionId}/cancel`, { cancel_at_cycle_end: false }, config);
+
+  const pb = await createAdminClient();
+  await pb.collection('billing_subscriptions').update(subscription.id, {
+    status: 'cancelled',
+    cancel_at_period_end: false,
+    razorpay_subscription_id: '',
+    razorpay_customer_id: '',
+    razorpay_plan_id: '',
+    current_period_ends_at: '',
+    last_payment_id: '',
+  });
+
+  return {
+    ...subscription,
+    status: 'cancelled',
+    razorpay_subscription_id: '',
+    razorpay_customer_id: '',
+    razorpay_plan_id: '',
+  };
+}
+
 export async function createRazorpaySubscriptionForUser(user) {
   const config = getRazorpayConfig();
-  const subscription = await startTrialForUser(user.id);
+  let subscription = await startTrialForUser(user.id);
+
+  // A plan can change while a customer has an unapproved checkout open. Never
+  // show that obsolete checkout again. Cancel it before issuing one for the
+  // current plan, but never replace an approved or active mandate.
+  if (shouldReplacePendingSubscription(subscription, config)) {
+    subscription = await cancelPendingRazorpaySubscription(subscription, config);
+  }
 
   // Returning an existing checkout subscription prevents a double-click from
   // creating two Razorpay subscriptions for the same TaskPilot account.
