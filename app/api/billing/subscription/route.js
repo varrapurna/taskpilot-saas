@@ -1,10 +1,16 @@
 import { getAuthenticatedClient } from '@/server/auth/account';
 import { createRazorpaySubscriptionForUser } from '@/server/billing/subscriptions';
-import { authJson, authOptions } from '@/server/http/auth-response';
+import { authJson, authOptions, authRateLimit, requireTrustedOrigin } from '@/server/http/auth-response';
 
 export function OPTIONS(request) { return authOptions(request); }
 
 export async function POST(request) {
+  const csrfRejected = requireTrustedOrigin(request);
+  if (csrfRejected) return csrfRejected;
+
+  const rateLimited = authRateLimit(request, 'billing-subscription', { limit: 5, windowMs: 15 * 60 * 1000 });
+  if (rateLimited) return rateLimited;
+
   const client = await getAuthenticatedClient();
   if (!client) return authJson(request, { error: 'Please log in.' }, 401);
 

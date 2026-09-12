@@ -1,7 +1,7 @@
 import { getAuthenticatedClient } from '@/server/auth/account';
 import { cancelRazorpaySubscriptionForUser, getBillingSummaryForUser } from '@/server/billing/subscriptions';
 import { deleteCredentialsForUser, deleteSession, getCredentialsForUser } from '@/server/database/pocketbase';
-import { authJson, authOptions } from '@/server/http/auth-response';
+import { authJson, authOptions, requireTrustedOrigin } from '@/server/http/auth-response';
 
 function maskedPhone(phone) {
   const normalized = String(phone || '').replace(/\D/g, '');
@@ -38,6 +38,9 @@ export async function GET(request) {
 }
 
 export async function DELETE(request) {
+  const csrfRejected = requireTrustedOrigin(request);
+  if (csrfRejected) return csrfRejected;
+
   const client = await getAuthenticatedClient();
   if (!client) return authJson(request, { error: 'Please log in.' }, 401);
 

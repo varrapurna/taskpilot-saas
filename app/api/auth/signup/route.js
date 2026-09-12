@@ -1,9 +1,12 @@
-import { authJson, authOptions } from '@/server/http/auth-response';
+import { authJson, authOptions, authRateLimit } from '@/server/http/auth-response';
 import { createClientAccount, normalizeEmail, validatePassword } from '@/server/auth/account';
 
 export function OPTIONS(request) { return authOptions(request); }
 
 export async function POST(request) {
+  const rateLimited = authRateLimit(request, 'auth-signup', { limit: 5, windowMs: 60 * 60 * 1000 });
+  if (rateLimited) return rateLimited;
+
   try {
     const { name, email, password } = await request.json();
     const cleanName = typeof name === 'string' ? name.trim() : '';

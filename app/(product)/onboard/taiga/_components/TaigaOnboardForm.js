@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import SignOutButton from '../../../_components/SignOutButton';
 import styles from '../../onboard.module.css';
 
@@ -31,6 +32,9 @@ function loadRazorpayCheckout() {
 }
 
 export default function TaigaOnboardForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const isUpdateMode = searchParams.get('mode') === 'update';
   const [form, setForm] = useState({
     phone: '',
     taigaUsername: '',
@@ -60,6 +64,24 @@ export default function TaigaOnboardForm() {
     });
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (isUpdateMode) return undefined;
+
+    let active = true;
+    fetch(`${API_BASE_URL}/api/dashboard`, { credentials: 'include' })
+      .then(async (response) => {
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.error || 'Could not load connection status.');
+        return Boolean(body.integrations?.taigaConnected);
+      })
+      .then((connected) => {
+        if (active && connected) router.replace('/manage/taiga');
+      })
+      .catch(() => {});
+
+    return () => { active = false; };
+  }, [isUpdateMode, router]);
 
   function handleChange(event) {
     setForm((previous) => ({ ...previous, [event.target.name]: event.target.value }));
