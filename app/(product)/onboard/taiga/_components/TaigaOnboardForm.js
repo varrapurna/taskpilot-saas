@@ -8,6 +8,7 @@ import styles from '../../onboard.module.css';
 
 const isLocalBrowser = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
 const API_BASE_URL = isLocalBrowser ? '' : (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '');
+const TAIGA_BASE_URL = 'https://api.taiga.io/api/v1';
 
 function loadRazorpayCheckout() {
   if (window.Razorpay) return Promise.resolve(window.Razorpay);
@@ -36,7 +37,6 @@ export default function TaigaOnboardForm() {
     phone: '',
     taigaUsername: '',
     taigaPassword: '',
-    taigaBaseUrl: 'https://api.taiga.io/api/v1',
   });
   const [billing, setBilling] = useState(null);
   const [billingError, setBillingError] = useState('');
@@ -74,7 +74,7 @@ export default function TaigaOnboardForm() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, taigaBaseUrl: TAIGA_BASE_URL }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Something went wrong.');
@@ -196,11 +196,6 @@ export default function TaigaOnboardForm() {
                 <button type="button" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? 'Hide Taiga password' : 'Show Taiga password'}>{showPassword ? 'Hide' : 'Show'}</button>
               </div>
             </div>
-            <details className={styles.advancedField}>
-              <summary>Advanced: Taiga API URL</summary>
-              <p>Leave this unchanged unless your organisation uses its own Taiga server.</p>
-              <input name="taigaBaseUrl" value={form.taigaBaseUrl} onChange={handleChange} inputMode="url" required />
-            </details>
             <div className={styles.trialOffer}>
               <strong>{approved ? 'Your free trial is active.' : 'Start your 7-day free trial.'}</strong>
               <span>₹100/month after the trial. No charge today.</span>

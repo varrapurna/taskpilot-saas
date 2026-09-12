@@ -10,4 +10,5 @@
 
 /* Keep the dashboard open and editorial rather than making every section a card. */
 .integrationCard, .commandsPanel, .accountPanel, .billingPanel { border: 0; border-top: 1px solid #d8ded7; border-radius: 0; background: transparent; }
-.integrationCard { min-height: 0; padding: 24px 0; }.commandsPanel, .accountPanel, .billingPanel { padding-left: 0; padding-right: 0; }.billingPanel { background: transparent; }
+.integrationCard { min-height: 0; padding: 24px 0; }.commandsPanel, .accountPanel, .billingPanel { padding-left: 0; padding-right: 0; }.billingPanel { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 28px; row-gap: 14px; align-items: center; background: transparent; }.billingHeading, .billingNote, .billingMessage { grid-column: 1 / -1; }.billingPanel > p { margin: 0; }.billingButton { grid-column: 2; grid-row: 2; min-width: 170px; margin: 0; text-align: center; }.billingNote { margin: 0; }
+@media (max-width: 800px) { .billingPanel { grid-template-columns: 1fr; }.billingHeading, .billingNote, .billingMessage, .billingPanel > p, .billingButton { grid-column: 1; grid-row: auto; }.billingButton { width: fit-content; margin-top: 3px; } }
