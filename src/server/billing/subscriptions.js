@@ -101,9 +101,17 @@ async function razorpayRequest(path, payload, config) {
 
   const body = await response.json().catch(() => null);
   if (!response.ok || !body?.id) {
-    console.error('Razorpay subscription creation failed.', { status: response.status, code: body?.error?.code });
+    console.error('Razorpay request failed.', {
+      path,
+      status: response.status,
+      code: body?.error?.code,
+      description: body?.error?.description,
+    });
     const error = new Error('Razorpay could not start the subscription.');
     error.code = 'RAZORPAY_SUBSCRIPTION_FAILED';
+    error.providerStatus = response.status;
+    error.providerCode = body?.error?.code;
+    error.providerDescription = body?.error?.description;
     throw error;
   }
   return body;
@@ -127,7 +135,20 @@ async function cancelPendingRazorpaySubscription(subscription, config) {
     throw error;
   }
 
-  await razorpayRequest(`/subscriptions/${subscriptionId}/cancel`, { cancel_at_cycle_end: false }, config);
+  try {
+    await razorpayRequest(`/subscriptions/${subscriptionId}/cancel`, { cancel_at_cycle_end: false }, config);
+  } catch (error) {
+    // The plan/keys may have moved from Razorpay test mode or another account.
+    // This local record is unapproved, so a missing remote subscription is safe
+    // to discard before creating the checkout for the current Live account.
+    const isMissingFromCurrentAccount = error.providerStatus === 404
+      || /ID provided is invalid or could not be found/i.test(error.providerDescription || '');
+    if (!isMissingFromCurrentAccount) throw error;
+
+    console.warn('Clearing an unapproved Razorpay checkout missing from the current account.', {
+      subscriptionId,
+    });
+  }
 
   const pb = await createAdminClient();
   await pb.collection('billing_subscriptions').update(subscription.id, {
