@@ -2,6 +2,7 @@ import axios from 'axios';
 import { encrypt } from '@/server/security/crypto';
 import { saveCredentials, saveSession } from '@/server/database/pocketbase';
 import { getCorsHeaders } from '@/server/http/cors';
+import { authRateLimit, requireTrustedOrigin } from '@/server/http/auth-response';
 import { getAuthenticatedClient } from '@/server/auth/account';
 import { getBillingSubscription } from '@/server/billing/subscriptions';
 
@@ -21,7 +22,7 @@ function validateRegistration({ phone, taigaUsername, taigaPassword, taigaBaseUr
     return { error: 'Enter a valid WhatsApp number with country code.' };
   }
 
-  if (taigaUsername.trim().length > 254) {
+  if (taigaUsername.trim().length > 254 || taigaPassword.length > 1024) {
     return { error: 'One of the provided fields is too long.' };
   }
 
@@ -98,6 +99,12 @@ export async function POST(request) {
   const responseOptions = {
     headers: { ...(corsHeaders || {}), 'Cache-Control': 'no-store' },
   };
+
+  const csrfRejected = requireTrustedOrigin(request);
+  if (csrfRejected) return csrfRejected;
+
+  const rateLimited = authRateLimit(request, 'taiga-registration', { limit: 10, windowMs: 15 * 60 * 1000 });
+  if (rateLimited) return rateLimited;
 
   try {
     const client = await getAuthenticatedClient();

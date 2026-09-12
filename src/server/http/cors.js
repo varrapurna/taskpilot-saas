@@ -5,9 +5,14 @@ function allowedOrigins() {
     .filter(Boolean);
 }
 
+export function hasAllowedOrigin(request) {
+  const origin = request.headers.get('origin');
+  return Boolean(origin && allowedOrigins().includes(origin));
+}
+
 export function getCorsHeaders(request) {
   const origin = request.headers.get('origin');
-  if (!origin || !allowedOrigins().includes(origin)) {
+  if (!origin || !hasAllowedOrigin(request)) {
     return null;
   }
 
