@@ -48,6 +48,42 @@ function validateRegistration({ phone, taigaUsername, taigaPassword, taigaBaseUr
   };
 }
 
+function registrationErrorResponse(error, responseOptions) {
+  const message = error instanceof Error ? error.message : '';
+  console.error('Taiga registration failed.', {
+    name: error?.name,
+    code: error?.code,
+    status: error?.status,
+    message,
+  });
+
+  if (error?.code === 'WHATSAPP_ALREADY_CONNECTED') {
+    return Response.json({ error: message }, { status: 409, ...responseOptions });
+  }
+  if (message.includes('ENCRYPTION_MASTER_KEY')) {
+    return Response.json(
+      { error: 'Secure credential storage is not ready. Please contact TaskPilot support.' },
+      { status: 503, ...responseOptions }
+    );
+  }
+  if (error?.code === 'TAIGA_UNAVAILABLE') {
+    return Response.json(
+      { error: 'Taiga is temporarily unavailable. Please try again shortly.' },
+      { status: 503, ...responseOptions }
+    );
+  }
+  if (message.includes('POCKETBASE_URL') || error?.status >= 500) {
+    return Response.json(
+      { error: 'The connection service is temporarily unavailable. Please try again shortly.' },
+      { status: 503, ...responseOptions }
+    );
+  }
+  return Response.json(
+    { error: 'We could not save your Taiga connection. Please try again.' },
+    { status: 500, ...responseOptions }
+  );
+}
+
 export function OPTIONS(request) {
   const corsHeaders = getCorsHeaders(request);
   return new Response(null, { status: corsHeaders ? 204 : 403, headers: corsHeaders || {} });
@@ -87,11 +123,16 @@ export async function POST(request) {
         username: taigaUsername,
         password: taigaPassword,
       });
-    } catch {
-      return Response.json(
-        { error: 'Could not connect to Taiga. Check your username and password.' },
-        { status: 400, ...responseOptions }
-      );
+    } catch (error) {
+      if ([400, 401, 403].includes(error?.response?.status)) {
+        return Response.json(
+          { error: 'Could not connect to Taiga. Check your username and password.' },
+          { status: 400, ...responseOptions }
+        );
+      }
+      const unavailableError = new Error('Taiga is temporarily unavailable.');
+      unavailableError.code = 'TAIGA_UNAVAILABLE';
+      throw unavailableError;
     }
 
     await saveCredentials(phone, client.record.id, {
@@ -104,14 +145,7 @@ export async function POST(request) {
     });
 
     return Response.json({ success: true, phone }, responseOptions);
-  } catch (err) {
-    console.error('Register error:', err.message);
-    if (err.code === 'WHATSAPP_ALREADY_CONNECTED') {
-      return Response.json({ error: err.message }, { status: 409, ...responseOptions });
-    }
-    return Response.json(
-      { error: 'Something went wrong. Please try again.' },
-      { status: 500, ...responseOptions }
-    );
+  } catch (error) {
+    return registrationErrorResponse(error, responseOptions);
   }
 }
