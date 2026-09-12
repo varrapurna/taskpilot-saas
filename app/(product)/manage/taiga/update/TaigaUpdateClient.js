@@ -15,9 +15,22 @@ function maskedUsername(username) {
   return `${username.slice(0, 2)}••••${username.slice(-1)}`;
 }
 
-export default function TaigaUpdateClient() {
+function cachedConnection() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const saved = window.sessionStorage.getItem('taskpilot_taiga_connection');
+    const connection = saved ? JSON.parse(saved) : null;
+    return typeof connection?.whatsappNumber === 'string' && typeof connection?.taigaUsername === 'string'
+      ? connection
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export default function TaigaUpdateClient({ initialConnection = null }) {
   const router = useRouter();
-  const [connection, setConnection] = useState(null);
+  const [connection, setConnection] = useState(() => initialConnection || cachedConnection());
   const [form, setForm] = useState({
     phone: '',
     taigaUsername: '',
@@ -26,7 +39,7 @@ export default function TaigaUpdateClient() {
   });
   const [showTaigaPassword, setShowTaigaPassword] = useState(false);
   const [showTaskPilotPassword, setShowTaskPilotPassword] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !initialConnection && !cachedConnection());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [updated, setUpdated] = useState(false);
@@ -47,11 +60,15 @@ export default function TaigaUpdateClient() {
         }
         return body.connection;
       })
-      .then((nextConnection) => active && nextConnection && setConnection(nextConnection))
+      .then((nextConnection) => {
+        if (!active || !nextConnection) return;
+        window.sessionStorage.setItem('taskpilot_taiga_connection', JSON.stringify(nextConnection));
+        setConnection(nextConnection);
+      })
       .catch((requestError) => active && setError(requestError.message || 'We could not load your Taiga connection.'))
       .finally(() => active && setLoading(false));
     return () => { active = false; };
-  }, [router]);
+  }, [initialConnection, router]);
 
   function handleChange(event) {
     setForm((previous) => ({ ...previous, [event.target.name]: event.target.value }));
