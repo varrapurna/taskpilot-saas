@@ -1,7 +1,13 @@
+'use client';
+
 import Image from 'next/image';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import SignOutButton from '../_components/SignOutButton';
 import styles from './onboard.module.css';
+
+const isLocalBrowser = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const API_BASE_URL = isLocalBrowser ? '' : (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '');
 
 const integrations = [
   {
@@ -30,6 +36,35 @@ const integrations = [
 ];
 
 export default function OnboardPage() {
+  const [taigaConnected, setTaigaConnected] = useState(null);
+  const waNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.replace(/\D/g, '');
+  const resumeLink = waNumber ? `https://wa.me/${waNumber}?text=hi` : '/manage/taiga';
+
+  useEffect(() => {
+    let active = true;
+    fetch(`${API_BASE_URL}/api/dashboard`, { credentials: 'include' })
+      .then(async (response) => {
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.error || 'Could not load integration status.');
+        return Boolean(body.integrations?.taigaConnected);
+      })
+      .then((connected) => active && setTaigaConnected(connected))
+      .catch(() => active && setTaigaConnected(false));
+    return () => { active = false; };
+  }, []);
+
+  const displayedIntegrations = integrations.map((integration) => {
+    if (integration.name !== 'Taiga' || taigaConnected !== true) return integration;
+    return {
+      ...integration,
+      description: 'Your Taiga workspace is connected. Resume your work in WhatsApp or manage this connection.',
+      href: resumeLink,
+      action: 'Resume Taiga work',
+      status: 'Connected',
+      connected: true,
+    };
+  });
+
   return (
     <main className={styles.selectorMain}>
       <header className={styles.selectorHeader}>
@@ -51,7 +86,7 @@ export default function OnboardPage() {
         </div>
 
         <div className={styles.integrationGrid}>
-          {integrations.map((integration) => (
+          {displayedIntegrations.map((integration) => (
             <article className={`${styles.integrationCard} ${integration.tone === 'taiga' ? styles.taigaFeature : styles.mhConnektFeature}`} key={integration.name}>
               <div className={styles.logoPanel}>
                 <Image
@@ -66,17 +101,20 @@ export default function OnboardPage() {
               <div className={styles.integrationBody}>
                 <div className={styles.cardTitleRow}>
                   <h2>{integration.name}</h2>
-                  <span className={integration.available ? styles.availableBadge : styles.nextBadge}>
+                  <span className={integration.connected ? styles.connectedBadge : integration.available ? styles.availableBadge : styles.nextBadge}>
                     {integration.status}
                   </span>
                 </div>
                 <p>{integration.description}</p>
 
                 {integration.available ? (
-                  <Link href={integration.href} className={styles.connectButton}>
+                  <div className={styles.integrationActions}>
+                  <Link href={integration.href} target={integration.connected && waNumber ? '_blank' : undefined} rel={integration.connected && waNumber ? 'noopener noreferrer' : undefined} className={styles.connectButton}>
                     {integration.action}
                     <span aria-hidden="true">→</span>
                   </Link>
+                  {integration.connected && <Link href="/manage/taiga" className={styles.manageLink}>Manage Taiga connection</Link>}
+                  </div>
                 ) : (
                   <button className={styles.disabledButton} type="button" disabled>
                     {integration.action}
