@@ -264,6 +264,27 @@ export async function createRazorpaySubscriptionForUser(user) {
   };
 }
 
+export async function cancelRazorpaySubscriptionForUser(userId, existingAdminClient) {
+  const pb = existingAdminClient || await createAdminClient();
+  const subscription = await getBillingSubscription(userId, pb);
+  if (!subscription || ['cancelled', 'expired'].includes(subscription.status)) return subscription;
+
+  if (subscription.razorpay_subscription_id) {
+    const config = getRazorpayConfig();
+    await razorpayRequest(
+      `/subscriptions/${subscription.razorpay_subscription_id}/cancel`,
+      { cancel_at_cycle_end: false },
+      config
+    );
+  }
+
+  return pb.collection('billing_subscriptions').update(subscription.id, {
+    status: 'cancelled',
+    cancel_at_period_end: false,
+    razorpay_autopay_accepted: false,
+  });
+}
+
 export async function getBillingSummaryForUser(userId, existingAdminClient) {
   let subscription = await getBillingSubscription(userId, existingAdminClient);
 

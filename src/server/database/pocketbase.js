@@ -47,6 +47,24 @@ export async function getIntegrationStatusForUser(userId, existingAdminClient) {
   }
 }
 
+export async function getCredentialsForUser(userId, existingAdminClient) {
+  const pb = existingAdminClient || await createAdminClient();
+  try {
+    return await pb.collection('credentials').getFirstListItem(`user = "${userId}"`);
+  } catch (error) {
+    if (error?.status === 404) return null;
+    throw error;
+  }
+}
+
+export async function deleteCredentialsForUser(userId, existingAdminClient) {
+  const pb = existingAdminClient || await createAdminClient();
+  const credentials = await getCredentialsForUser(userId, pb);
+  if (!credentials) return false;
+  await pb.collection('credentials').delete(credentials.id);
+  return true;
+}
+
 export async function getSession(whatsappNumber) {
   const pb = await createAdminClient();
   return findSession(pb, whatsappNumber);

@@ -55,8 +55,10 @@ function getSubscriptionUpdate(eventType, subscription, payment, billingSubscrip
     update.status = 'past_due';
   } else if (eventType === 'subscription.cancelled') {
     update.status = 'cancelled';
+    update.razorpay_autopay_accepted = false;
   } else if (eventType === 'subscription.completed') {
     update.status = 'expired';
+    update.razorpay_autopay_accepted = false;
   }
 
   return update;

@@ -77,7 +77,7 @@ export default function DashboardClient() {
             <div className={styles.cardTop}><span className={styles.icon}>✓</span><span className={integrations.taigaConnected ? styles.connected : styles.notConnected}>{integrations.taigaConnected ? 'Connected' : 'Not connected'}</span></div>
             <h2>Taiga</h2>
             <p>{integrations.taigaConnected ? 'Your Taiga tasks are ready to manage from WhatsApp.' : 'Connect Taiga to see tasks, add comments, and update status from WhatsApp.'}</p>
-            <Link href="/onboard/taiga" className={styles.cardAction}>{integrations.taigaConnected ? 'Manage Taiga connection' : 'Connect Taiga'} <span aria-hidden="true">→</span></Link>
+            <Link href={integrations.taigaConnected ? '/manage/taiga' : '/onboard/taiga'} className={styles.cardAction}>{integrations.taigaConnected ? 'Manage Taiga connection' : 'Connect Taiga'} <span aria-hidden="true">→</span></Link>
           </article>
           <article className={styles.integrationCard}>
             <div className={styles.cardTop}><span className={styles.icon}>M</span><span className={styles.soon}>Coming later</span></div>
