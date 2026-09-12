@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import SignOutButton from '../../../_components/SignOutButton';
 import styles from '../../onboard.module.css';
 
@@ -32,7 +31,6 @@ function loadRazorpayCheckout() {
 }
 
 export default function TaigaOnboardForm() {
-  const router = useRouter();
   const [form, setForm] = useState({
     phone: '',
     taigaUsername: '',
@@ -45,6 +43,7 @@ export default function TaigaOnboardForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [connectedPhone, setConnectedPhone] = useState('');
 
   async function loadBilling() {
     const response = await fetch(`${API_BASE_URL}/api/billing/status`, { credentials: 'include' });
@@ -78,7 +77,7 @@ export default function TaigaOnboardForm() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Something went wrong.');
-      router.push('/dashboard');
+      setConnectedPhone(data.phone || form.phone.replace(/^\+/, ''));
     } catch (requestError) {
       setError(requestError.message || 'Network error. Please try again.');
     } finally {
@@ -153,6 +152,8 @@ export default function TaigaOnboardForm() {
   }
 
   const approved = Boolean(billing?.autopayAccepted);
+  const taskPilotNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.replace(/\D/g, '');
+  const welcomeLink = taskPilotNumber ? `https://wa.me/${taskPilotNumber}?text=hi` : null;
 
   return (
     <main className={styles.setupMain}>
@@ -173,6 +174,19 @@ export default function TaigaOnboardForm() {
         </div>
 
         <section className={styles.formCard} aria-labelledby="taiga-form-title">
+          {connectedPhone ? (
+            <div className={styles.connectionComplete}>
+              <span className={styles.completeMark} aria-hidden="true">✓</span>
+              <p className={styles.cardEyebrow}>Taiga connected</p>
+              <h2 id="taiga-form-title">Start with a quick hello.</h2>
+              <p>Open TaskPilot in WhatsApp and send <strong>hi</strong>. We will then confirm your workspace and help you start with your open work.</p>
+              <p className={styles.completeNote}>Nothing is sent automatically. You choose when to begin the chat.</p>
+              <div className={styles.completeActions}>
+                {welcomeLink && <a href={welcomeLink} target="_blank" rel="noopener noreferrer" className={styles.submitBtn}>Open WhatsApp and send hi</a>}
+                <Link href="/dashboard" className={styles.dashboardLink}>Go to dashboard</Link>
+              </div>
+            </div>
+          ) : <>
           <div className={styles.formCardHeader}>
             <span className={styles.taigaMark}>T</span>
             <div><p className={styles.cardEyebrow}>Taiga connection</p><h2 id="taiga-form-title">Your account details</h2></div>
@@ -207,6 +221,7 @@ export default function TaigaOnboardForm() {
               {loading ? 'Connecting Taiga...' : paymentLoading ? 'Opening secure Razorpay...' : approved ? 'Connect Taiga' : 'Start 7-day free trial'}
             </button>
           </form>
+          </>}
         </section>
       </section>
     </main>

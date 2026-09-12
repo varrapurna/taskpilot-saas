@@ -1,6 +1,6 @@
 import { getAuthenticatedClient } from '@/server/auth/account';
 import { cancelRazorpaySubscriptionForUser, getBillingSummaryForUser } from '@/server/billing/subscriptions';
-import { deleteCredentialsForUser, getCredentialsForUser } from '@/server/database/pocketbase';
+import { deleteCredentialsForUser, deleteSession, getCredentialsForUser } from '@/server/database/pocketbase';
 import { authJson, authOptions } from '@/server/http/auth-response';
 
 function maskedPhone(phone) {
@@ -44,8 +44,16 @@ export async function DELETE(request) {
   try {
     // Cancel billing first. If Razorpay rejects the request, keep Taiga
     // connected so the customer never loses access while auto-pay remains on.
+    const credentials = await getCredentialsForUser(client.record.id, client.admin);
     await cancelRazorpaySubscriptionForUser(client.record.id, client.admin);
     await deleteCredentialsForUser(client.record.id, client.admin);
+    if (credentials?.whatsapp_number) {
+      try {
+        await deleteSession(credentials.whatsapp_number, client.admin);
+      } catch (sessionError) {
+        console.error('Taiga disconnect session cleanup failed.', sessionError?.message);
+      }
+    }
     return authJson(request, { success: true });
   } catch (error) {
     console.error('Taiga disconnect failed.', error?.code || error?.message);

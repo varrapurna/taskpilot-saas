@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { encrypt } from '@/server/security/crypto';
-import { saveCredentials } from '@/server/database/pocketbase';
+import { saveCredentials, saveSession } from '@/server/database/pocketbase';
 import { getCorsHeaders } from '@/server/http/cors';
 import { getAuthenticatedClient } from '@/server/auth/account';
 import { getBillingSubscription } from '@/server/billing/subscriptions';
@@ -142,6 +142,15 @@ export async function POST(request) {
       taiga_password_enc: encrypt(taigaPassword),
       taiga_base_url: taigaBaseUrl,
       user: client.record.id,
+    });
+
+    // No outbound WhatsApp message is sent here. The customer starts the
+    // conversation by sending "hi", then the webhook replies in that window.
+    await saveSession(phone, 'idle', {
+      tasks: [],
+      taskIndex: 0,
+      currentTask: null,
+      welcomeShown: false,
     });
 
     return Response.json({ success: true, phone }, responseOptions);

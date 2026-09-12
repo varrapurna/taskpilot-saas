@@ -65,6 +65,14 @@ export async function deleteCredentialsForUser(userId, existingAdminClient) {
   return true;
 }
 
+export async function deleteSession(whatsappNumber, existingAdminClient) {
+  const pb = existingAdminClient || await createAdminClient();
+  const session = await findSession(pb, whatsappNumber);
+  if (!session) return false;
+  await pb.collection('sessions').delete(session.id);
+  return true;
+}
+
 export async function getSession(whatsappNumber) {
   const pb = await createAdminClient();
   return findSession(pb, whatsappNumber);

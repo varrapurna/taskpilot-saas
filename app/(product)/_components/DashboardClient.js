@@ -50,7 +50,7 @@ export default function DashboardClient() {
 
   const { user, integrations, billing } = data;
   const waNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.replace(/\D/g, '');
-  const waLink = waNumber ? `https://wa.me/${waNumber}?text=tasks` : null;
+  const waLink = waNumber ? `https://wa.me/${waNumber}?text=hi` : null;
 
   return (
     <main className={styles.main}>
@@ -91,8 +91,8 @@ export default function DashboardClient() {
           <article className={styles.whatsappPanel}>
             <p className={styles.eyebrow}>Start in WhatsApp</p>
             <h2>{integrations.taigaConnected ? 'Your Taiga chat is ready.' : 'Connect Taiga to start.'}</h2>
-            <p>{integrations.taigaConnected ? 'Open the TaskPilot WhatsApp chat and type “tasks” to see your open work.' : 'Your WhatsApp number is linked during the Taiga connection. There is no separate WhatsApp setup.'}</p>
-            {integrations.taigaConnected && waLink ? <a href={waLink} target="_blank" rel="noopener noreferrer" className={styles.whatsappButton}>Open WhatsApp chat</a> : <Link href="/onboard/taiga" className={styles.whatsappButton}>Connect Taiga</Link>}
+            <p>{integrations.taigaConnected ? 'Open the TaskPilot WhatsApp chat and send hi. We will welcome you, then you can send tasks to see your open work.' : 'Your WhatsApp number is linked during the Taiga connection. There is no separate WhatsApp setup.'}</p>
+            {integrations.taigaConnected && waLink ? <a href={waLink} target="_blank" rel="noopener noreferrer" className={styles.whatsappButton}>Open WhatsApp and send hi</a> : <Link href="/onboard/taiga" className={styles.whatsappButton}>Connect Taiga</Link>}
           </article>
 
           <article className={styles.commandsPanel}>

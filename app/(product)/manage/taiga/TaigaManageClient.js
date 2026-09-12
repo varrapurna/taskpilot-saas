@@ -97,7 +97,7 @@ export default function TaigaManageClient() {
           <div><p>{trialMessage(data.billing)}</p><small>Auto-pay is charged only by Razorpay. It is cancelled if you disconnect Taiga below.</small></div>
         </section>
 
-        <section className={styles.guide} aria-label="WhatsApp commands"><p className={styles.eyebrow}>Use it in WhatsApp</p><h2>Start with “tasks”.</h2><p>See your open Taiga tasks, then reply with <strong>1</strong> to comment, <strong>2</strong> to change status, or <strong>end</strong> to finish.</p></section>
+        <section className={styles.guide} aria-label="WhatsApp commands"><p className={styles.eyebrow}>Use it in WhatsApp</p><h2>Start by sending hi.</h2><p>TaskPilot will welcome you. Then send <strong>tasks</strong> to see your open Taiga work, reply with <strong>1</strong> to comment, <strong>2</strong> to change status, or <strong>end</strong> to finish.</p></section>
 
         <section className={styles.danger} aria-label="Disconnect Taiga">
           <div><p className={styles.eyebrow}>Disconnect</p><h2>Stop using Taiga with TaskPilot.</h2><p>Disconnecting removes your encrypted Taiga credentials and immediately cancels your Razorpay auto-pay. You will no longer receive Taiga work in WhatsApp.</p></div>

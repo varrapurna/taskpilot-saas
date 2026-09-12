@@ -90,7 +90,13 @@ export async function POST(request) {
     console.log(`📩 From ${from} [step: ${session.step}]: ${text}`);
 
     // ── END: resets from any step ──
-    if (text.toLowerCase() === 'end') {
+    if (!session.welcomeShown && ['hi', 'hello'].includes(text.toLowerCase())) {
+      session.welcomeShown = true;
+      await wa.sendMessage(
+        'Welcome to TaskPilot. Your Taiga workspace is connected. Send *tasks* to see your open work.',
+        from
+      );
+    } else if (text.toLowerCase() === 'end') {
       session.step = 'idle';
       session.tasks = [];
       session.taskIndex = 0;
