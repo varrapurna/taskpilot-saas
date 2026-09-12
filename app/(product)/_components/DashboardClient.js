@@ -50,7 +50,7 @@ export default function DashboardClient() {
 
   const { user, integrations, billing } = data;
   const waNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.replace(/\D/g, '');
-  const waLink = waNumber ? `https://wa.me/${waNumber}?text=tasks` : null;
+  const waLink = waNumber ? `https://wa.me/${waNumber}?text=hi` : null;
 
   return (
     <main className={styles.main}>
@@ -77,7 +77,7 @@ export default function DashboardClient() {
             <div className={styles.cardTop}><span className={styles.icon}>✓</span><span className={integrations.taigaConnected ? styles.connected : styles.notConnected}>{integrations.taigaConnected ? 'Connected' : 'Not connected'}</span></div>
             <h2>Taiga</h2>
             <p>{integrations.taigaConnected ? 'Your Taiga tasks are ready to manage from WhatsApp.' : 'Connect Taiga to see tasks, add comments, and update status from WhatsApp.'}</p>
-            <Link href="/onboard/taiga" className={styles.cardAction}>{integrations.taigaConnected ? 'Manage Taiga connection' : 'Connect Taiga'} <span aria-hidden="true">→</span></Link>
+            <Link href={integrations.taigaConnected ? '/manage/taiga' : '/onboard/taiga'} className={styles.cardAction}>{integrations.taigaConnected ? 'Manage Taiga connection' : 'Connect Taiga'} <span aria-hidden="true">→</span></Link>
           </article>
           <article className={styles.integrationCard}>
             <div className={styles.cardTop}><span className={styles.icon}>M</span><span className={styles.soon}>Coming later</span></div>
@@ -91,8 +91,8 @@ export default function DashboardClient() {
           <article className={styles.whatsappPanel}>
             <p className={styles.eyebrow}>Start in WhatsApp</p>
             <h2>{integrations.taigaConnected ? 'Your Taiga chat is ready.' : 'Connect Taiga to start.'}</h2>
-            <p>{integrations.taigaConnected ? 'Open the TaskPilot WhatsApp chat and type “tasks” to see your open work.' : 'Your WhatsApp number is linked during the Taiga connection. There is no separate WhatsApp setup.'}</p>
-            {integrations.taigaConnected && waLink ? <a href={waLink} target="_blank" rel="noopener noreferrer" className={styles.whatsappButton}>Open WhatsApp chat</a> : <Link href="/onboard/taiga" className={styles.whatsappButton}>Connect Taiga</Link>}
+            <p>{integrations.taigaConnected ? 'Open the TaskPilot WhatsApp chat and send hi. We will welcome you, then you can send tasks to see your open work.' : 'Your WhatsApp number is linked during the Taiga connection. There is no separate WhatsApp setup.'}</p>
+            {integrations.taigaConnected && waLink ? <a href={waLink} target="_blank" rel="noopener noreferrer" className={styles.whatsappButton}>Open WhatsApp and send hi</a> : <Link href="/onboard/taiga" className={styles.whatsappButton}>Connect Taiga</Link>}
           </article>
 
           <article className={styles.commandsPanel}>
