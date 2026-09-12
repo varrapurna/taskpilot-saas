@@ -117,6 +117,37 @@ async function razorpayRequest(path, payload, config) {
   return body;
 }
 
+async function getRazorpaySubscription(subscriptionId, config) {
+  const authorization = Buffer.from(`${config.keyId}:${config.keySecret}`).toString('base64');
+  const response = await fetch(`https://api.razorpay.com/v1/subscriptions/${subscriptionId}`, {
+    headers: { Authorization: `Basic ${authorization}` },
+    cache: 'no-store',
+  });
+  const body = await response.json().catch(() => null);
+  if (!response.ok || !body?.id) {
+    console.error('Razorpay subscription lookup failed.', {
+      status: response.status,
+      code: body?.error?.code,
+      description: body?.error?.description,
+    });
+    const error = new Error('Razorpay could not confirm the subscription.');
+    error.providerStatus = response.status;
+    error.providerDescription = body?.error?.description;
+    throw error;
+  }
+  return body;
+}
+
+function newTrialWindow() {
+  const trialStartedAt = new Date();
+  const trialEndsAt = new Date(trialStartedAt);
+  trialEndsAt.setDate(trialEndsAt.getDate() + TRIAL_DAYS);
+  return {
+    trial_started_at: trialStartedAt.toISOString(),
+    trial_ends_at: trialEndsAt.toISOString(),
+  };
+}
+
 function shouldReplacePendingSubscription(subscription, config) {
   return Boolean(
     subscription?.razorpay_subscription_id
@@ -234,5 +265,38 @@ export async function createRazorpaySubscriptionForUser(user) {
 }
 
 export async function getBillingSummaryForUser(userId, existingAdminClient) {
-  return toBillingSummary(await getBillingSubscription(userId, existingAdminClient));
+  let subscription = await getBillingSubscription(userId, existingAdminClient);
+
+  // Razorpay can complete the mandate before its webhook arrives. During that
+  // brief pending state, check Razorpay directly so the customer never gets
+  // stuck on a completed checkout. The response is fetched server-side with
+  // the secret key; the browser cannot mark a payment as approved.
+  if (subscription?.razorpay_subscription_id && !subscription.razorpay_autopay_accepted) {
+    try {
+      const razorpaySubscription = await getRazorpaySubscription(
+        subscription.razorpay_subscription_id,
+        getRazorpayConfig()
+      );
+      if (['authenticated', 'active'].includes(razorpaySubscription.status)) {
+        const pb = existingAdminClient || await createAdminClient();
+        const isInTrial = razorpaySubscription.status === 'authenticated';
+        const update = {
+          status: isInTrial ? 'trialing' : 'active',
+          razorpay_autopay_accepted: true,
+          razorpay_customer_id: razorpaySubscription.customer_id || '',
+          razorpay_plan_id: razorpaySubscription.plan_id || '',
+        };
+        if (isInTrial) Object.assign(update, newTrialWindow());
+        subscription = await pb.collection('billing_subscriptions').update(subscription.id, update);
+      }
+    } catch (error) {
+      // Keep the pending checkout visible if Razorpay is temporarily delayed.
+      // The signed webhook will also update the record when it arrives.
+      console.warn('Pending Razorpay subscription could not be confirmed yet.', {
+        status: error.providerStatus,
+      });
+    }
+  }
+
+  return toBillingSummary(subscription);
 }
