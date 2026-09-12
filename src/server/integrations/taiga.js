@@ -17,7 +17,11 @@ export function createTaigaClient(userConfig, cachedToken) {
   }
 
   function getHeaders() {
-    return { Authorization: `Bearer ${authToken}` };
+    return {
+      Authorization: `Bearer ${authToken}`,
+      // Never quietly show just Taiga's first result page.
+      'x-disable-pagination': 'true',
+    };
   }
 
   function getTokenSnapshot() {
@@ -32,7 +36,7 @@ export function createTaigaClient(userConfig, cachedToken) {
       if (err.response?.status === 401) {
         authToken = null;
         await login();
-        return await fn();
+        return fn();
       }
       throw err;
     }
@@ -45,33 +49,12 @@ export function createTaigaClient(userConfig, cachedToken) {
         { headers: getHeaders() }
       );
 
-      const storyIds = [...new Set(res.data.filter(t => t.user_story).map(t => t.user_story))];
-      const storyData = {};
-      await Promise.all(storyIds.map(async (storyId) => {
-        try {
-          const s = await axios.get(`${BASE}/userstories/${storyId}`, { headers: getHeaders() });
-          storyData[storyId] = {
-            epic: s.data.epics?.[0]?.subject || s.data.epic_extra_info?.subject || 'No epic',
-            status: s.data.status_extra_info?.name || 'Unknown',
-            version: s.data.version,
-          };
-        } catch (_) {
-          storyData[storyId] = { epic: 'No epic', status: 'Unknown', version: 1 };
-        }
-      }));
-
-      return res.data.map(task => ({
+      return res.data.map((task) => ({
         id: task.id,
         ref: task.ref,
         subject: task.subject,
         status: task.status_extra_info?.name || 'Unknown',
         due: task.due_date || null,
-        userStory: task.user_story_extra_info?.subject || 'No user story',
-        userStoryRef: task.user_story_extra_info?.ref || null,
-        userStoryId: task.user_story,
-        userStoryStatus: storyData[task.user_story]?.status || 'Unknown',
-        userStoryVersion: storyData[task.user_story]?.version || 1,
-        epic: storyData[task.user_story]?.epic || 'No epic',
         project: task.project_extra_info?.name || 'Unknown project',
         projectId: task.project,
         version: task.version,
@@ -79,41 +62,113 @@ export function createTaigaClient(userConfig, cachedToken) {
     });
   }
 
+  async function getMyIssues() {
+    return withAuth(async () => {
+      const res = await axios.get(
+        `${BASE}/issues?assigned_to=${userId}&status__is_closed=false`,
+        { headers: getHeaders() }
+      );
+
+      return res.data.map((issue) => ({
+        id: issue.id,
+        ref: issue.ref,
+        subject: issue.subject,
+        status: issue.status_extra_info?.name || 'Unknown',
+        priority: issue.priority_extra_info?.name || null,
+        severity: issue.severity_extra_info?.name || null,
+        type: issue.type_extra_info?.name || issue.issue_type_extra_info?.name || null,
+        due: issue.due_date || null,
+        project: issue.project_extra_info?.name || 'Unknown project',
+        projectId: issue.project,
+        version: issue.version,
+      }));
+    });
+  }
+
   async function postComment(taskId, comment) {
-    return withAuth(() =>
-      axios.post(`${BASE}/history/task/${taskId}`, { comment }, { headers: getHeaders() })
-    );
+    return withAuth(async () => {
+      const res = await axios.post(`${BASE}/history/task/${taskId}`, { comment }, { headers: getHeaders() });
+      return res.data;
+    });
+  }
+
+  async function postIssueComment(issueId, comment) {
+    return withAuth(async () => {
+      const res = await axios.post(`${BASE}/history/issue/${issueId}`, { comment }, { headers: getHeaders() });
+      return res.data;
+    });
   }
 
   async function changeTaskStatus(taskId, newStatusId, version) {
-    return withAuth(() =>
-      axios.patch(`${BASE}/tasks/${taskId}`, { status: newStatusId, version }, { headers: getHeaders() })
-    );
+    return withAuth(async () => {
+      const res = await axios.patch(
+        `${BASE}/tasks/${taskId}`,
+        { status: newStatusId, version },
+        { headers: getHeaders() }
+      );
+      return res.data;
+    });
   }
 
-  async function changeUserStoryStatus(storyId, newStatusId, version) {
-    return withAuth(() =>
-      axios.patch(`${BASE}/userstories/${storyId}`, { status: newStatusId, version }, { headers: getHeaders() })
-    );
+  async function changeIssueStatus(issueId, newStatusId, version) {
+    return withAuth(async () => {
+      const res = await axios.patch(
+        `${BASE}/issues/${issueId}`,
+        { status: newStatusId, version },
+        { headers: getHeaders() }
+      );
+      return res.data;
+    });
+  }
+
+  async function assignIssue(issueId, assigneeId, version) {
+    return withAuth(async () => {
+      const res = await axios.patch(
+        `${BASE}/issues/${issueId}`,
+        { assigned_to: assigneeId, version },
+        { headers: getHeaders() }
+      );
+      return res.data;
+    });
   }
 
   async function getTaskStatuses(projectId) {
     return withAuth(async () => {
       const res = await axios.get(`${BASE}/task-statuses?project=${projectId}`, { headers: getHeaders() });
-      return res.data.map(s => ({ id: s.id, name: s.name }));
+      return res.data.map((status) => ({ id: status.id, name: status.name, isClosed: Boolean(status.is_closed) }));
     });
   }
 
-  async function getUserStoryStatuses(projectId) {
+  async function getIssueStatuses(projectId) {
     return withAuth(async () => {
-      const res = await axios.get(`${BASE}/userstory-statuses?project=${projectId}`, { headers: getHeaders() });
-      return res.data.map(s => ({ id: s.id, name: s.name }));
+      const res = await axios.get(`${BASE}/issue-statuses?project=${projectId}`, { headers: getHeaders() });
+      return res.data.map((status) => ({ id: status.id, name: status.name, isClosed: Boolean(status.is_closed) }));
+    });
+  }
+
+  async function getProjectMembers(projectId) {
+    return withAuth(async () => {
+      const res = await axios.get(`${BASE}/memberships?project=${projectId}`, { headers: getHeaders() });
+      return res.data
+        .map((membership) => ({
+          id: membership.user,
+          name: membership.full_name || membership.username || membership.email || 'Unnamed member',
+        }))
+        .filter((member) => member.id);
     });
   }
 
   return {
-    getMyTasks, postComment, changeTaskStatus,
-    changeUserStoryStatus, getTaskStatuses, getUserStoryStatuses,
+    getMyTasks,
+    getMyIssues,
+    postComment,
+    postIssueComment,
+    changeTaskStatus,
+    changeIssueStatus,
+    assignIssue,
+    getTaskStatuses,
+    getIssueStatuses,
+    getProjectMembers,
     getTokenSnapshot,
   };
 }

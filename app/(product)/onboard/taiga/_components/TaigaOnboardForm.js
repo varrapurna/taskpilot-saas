@@ -58,6 +58,8 @@ export default function TaigaOnboardForm() {
   }
 
   useEffect(() => {
+    if (isUpdateMode) return undefined;
+
     let active = true;
     loadBilling().catch((requestError) => {
       if (active) setBillingError(requestError.message || 'We could not check billing.');
@@ -66,7 +68,10 @@ export default function TaigaOnboardForm() {
   }, []);
 
   useEffect(() => {
-    if (isUpdateMode) return undefined;
+    if (isUpdateMode) {
+      router.replace('/manage/taiga/update');
+      return undefined;
+    }
 
     let active = true;
     fetch(`${API_BASE_URL}/api/dashboard`, { credentials: 'include' })
@@ -176,6 +181,10 @@ export default function TaigaOnboardForm() {
   const approved = Boolean(billing?.autopayAccepted);
   const taskPilotNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.replace(/\D/g, '');
   const welcomeLink = taskPilotNumber ? `https://wa.me/${taskPilotNumber}?text=hi` : null;
+
+  if (isUpdateMode) {
+    return <main className={styles.setupMain}><section className={styles.redirecting}><h1>Opening Taiga settings…</h1><p>Taking you to the secure update page.</p></section></main>;
+  }
 
   return (
     <main className={styles.setupMain}>

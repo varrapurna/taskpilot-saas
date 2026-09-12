@@ -21,8 +21,11 @@ function trialMessage(billing) {
 
 export default function TaigaManageClient() {
   const router = useRouter();
+  const taskPilotNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.replace(/\D/g, '');
+  const welcomeLink = taskPilotNumber ? `https://wa.me/${taskPilotNumber}?text=hi` : null;
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
+  const [notConnected, setNotConnected] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
 
@@ -41,7 +44,7 @@ export default function TaigaManageClient() {
       .then((body) => {
         if (!body || !active) return;
         if (!body.connected) {
-          router.replace('/onboard/taiga');
+          setNotConnected(true);
           return;
         }
         setData(body);
@@ -69,6 +72,7 @@ export default function TaigaManageClient() {
   }
 
   if (error && !data) return <main className={styles.main}><section className={styles.status}><h1>Taiga connection unavailable</h1><p>{error}</p><button type="button" onClick={() => window.location.reload()}>Try again</button></section></main>;
+  if (notConnected) return <main className={styles.main}><section className={styles.status}><p className={styles.eyebrow}>Taiga connection</p><h1>No workspace connected.</h1><p>Connect Taiga to manage work from WhatsApp.</p><Link href="/onboard/taiga" className={styles.statusLink}>Connect Taiga</Link></section></main>;
   if (!data) return <main className={styles.main}><section className={styles.status}><h1>Loading your Taiga connection…</h1><p>Checking your connection securely.</p></section></main>;
 
   return (
@@ -89,7 +93,7 @@ export default function TaigaManageClient() {
             <div><dt>WhatsApp number</dt><dd>{data.connection.whatsappNumber}</dd></div>
             <div><dt>TaskPilot account</dt><dd>{data.connection.accountEmail}</dd></div>
           </dl>
-          <Link href="/onboard/taiga?mode=update" className={styles.textAction}>Update Taiga details →</Link>
+          <Link href="/manage/taiga/update" className={styles.textAction}>Update Taiga details →</Link>
         </section>
 
         <section className={styles.billing} aria-label="Subscription details">
@@ -97,7 +101,7 @@ export default function TaigaManageClient() {
           <div><p>{trialMessage(data.billing)}</p><small>Auto-pay is charged only by Razorpay. It is cancelled if you disconnect Taiga below.</small></div>
         </section>
 
-        <section className={styles.guide} aria-label="WhatsApp commands"><p className={styles.eyebrow}>Use it in WhatsApp</p><h2>Start by sending hi.</h2><p>TaskPilot will welcome you. Then send <strong>tasks</strong> to see your open Taiga work, reply with <strong>1</strong> to comment, <strong>2</strong> to change status, or <strong>end</strong> to finish.</p></section>
+        <section className={styles.guide} aria-label="WhatsApp commands"><p className={styles.eyebrow}>Use it in WhatsApp</p><h2>Start by sending hi.</h2><p>TaskPilot will welcome you. Then send <strong>tasks</strong> to see your open Taiga work, reply with <strong>1</strong> to comment, <strong>2</strong> to change status, or <strong>end</strong> to finish.</p>{welcomeLink && <a href={welcomeLink} target="_blank" rel="noopener noreferrer" className={styles.whatsappButton}>Open WhatsApp and send hi</a>}</section>
 
         <section className={styles.danger} aria-label="Disconnect Taiga">
           <div><p className={styles.eyebrow}>Disconnect</p><h2>Stop using Taiga with TaskPilot.</h2><p>Disconnecting removes your encrypted Taiga credentials and immediately cancels your Razorpay auto-pay. You will no longer receive Taiga work in WhatsApp.</p></div>
