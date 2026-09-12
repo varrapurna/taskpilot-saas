@@ -63,11 +63,18 @@ export default function TaigaManageClient() {
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.error || 'We could not disconnect Taiga.');
+      window.sessionStorage.removeItem('taskpilot_taiga_connection');
       router.replace('/dashboard');
       router.refresh();
     } catch (requestError) {
       setError(requestError.message || 'We could not disconnect Taiga.');
       setDisconnecting(false);
+    }
+  }
+
+  function prepareUpdate() {
+    if (data?.connection) {
+      window.sessionStorage.setItem('taskpilot_taiga_connection', JSON.stringify(data.connection));
     }
   }
 
@@ -93,7 +100,7 @@ export default function TaigaManageClient() {
             <div><dt>WhatsApp number</dt><dd>{data.connection.whatsappNumber}</dd></div>
             <div><dt>TaskPilot account</dt><dd>{data.connection.accountEmail}</dd></div>
           </dl>
-          <Link href="/manage/taiga/update" className={styles.textAction}>Update Taiga details →</Link>
+          <Link href="/manage/taiga/update" className={styles.textAction} onClick={prepareUpdate}>Update Taiga details →</Link>
         </section>
 
         <section className={styles.billing} aria-label="Subscription details">
