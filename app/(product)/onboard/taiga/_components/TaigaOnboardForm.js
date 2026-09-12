@@ -123,10 +123,10 @@ export default function TaigaOnboardForm() {
         key: body.checkout.keyId,
         subscription_id: body.checkout.subscriptionId,
         name: 'TaskPilot',
-        description: '₹100/month after your 7-day free trial',
+        description: '7-day free trial. ₹5 refundable mandate verification now; ₹100/month afterward.',
         recurring: true,
         redirect: false,
-        theme: { color: '#c92f4b', backdrop_color: '#14281a' },
+        theme: { color: '#14281a', backdrop_color: '#14281a' },
         modal: {
           backdropclose: false,
           confirm_close: true,
@@ -198,7 +198,7 @@ export default function TaigaOnboardForm() {
             </div>
             <div className={styles.trialOffer}>
               <strong>{approved ? 'Your free trial is active.' : 'Start your 7-day free trial.'}</strong>
-              <span>₹100/month after the trial. No charge today.</span>
+              <span>₹5 refundable mandate verification today. ₹100/month starts after your 7-day trial.</span>
             </div>
             {error && <p className={styles.error} role="alert">{error}</p>}
             {billingError && <p className={styles.error} role="alert">{billingError}</p>}
