@@ -12,7 +12,12 @@ export function OPTIONS(request) { return authOptions(request); }
 export async function GET(request) {
   const client = await getAuthenticatedClient();
   if (!client) return authJson(request, { error: 'Please log in.' }, 401);
-  const connection = await getMhConnectionForUser(client.record.id, client.admin);
+  let connection = null;
+  try {
+    connection = await getMhConnectionForUser(client.record.id, client.admin);
+  } catch (error) {
+    console.warn('MH Connekt status is unavailable.', { status: error?.status });
+  }
   return authJson(request, { connected: Boolean(connection), connection: connection ? { email: connection.mh_email.replace(/^(.{2}).*(@.*)$/, '$1•••$2'), whatsappNumber: `+${connection.whatsapp_number.slice(0, 3)}••••${connection.whatsapp_number.slice(-4)}` } : null });
 }
 
@@ -33,9 +38,18 @@ export async function POST(request) {
     await connectMhConnekt({ userId: client.record.id, phone: whatsappNumber, email: mhEmail, password, pb: client.admin });
     return authJson(request, { success: true });
   } catch (error) {
-    console.error('MH Connekt connection failed.', { code: error?.code, status: error?.providerStatus });
-    const messages = { MH_LOGIN_REJECTED: 'Could not sign in to MH Connekt. Check your email and password.', MH_UNAVAILABLE: 'MH Connekt is temporarily unavailable. Please try again shortly.', WHATSAPP_ALREADY_CONNECTED: error.message };
-    return authJson(request, { error: messages[error?.code] || 'We could not connect MH Connekt. Please try again.' }, error?.code === 'WHATSAPP_ALREADY_CONNECTED' ? 409 : error?.code === 'MH_LOGIN_REJECTED' ? 400 : 503);
+    const errorCode = error?.code
+      || (/ENCRYPTION_MASTER_KEY/.test(error?.message || '') ? 'MH_SECURE_STORAGE_NOT_READY' : '')
+      || (error?.status === 404 ? 'MH_STORAGE_NOT_READY' : '');
+    console.error('MH Connekt connection failed.', { code: errorCode, status: error?.providerStatus || error?.status });
+    const messages = {
+      MH_LOGIN_REJECTED: 'Could not sign in to MH Connekt. Check your email and password.',
+      MH_UNAVAILABLE: 'MH Connekt is temporarily unavailable. Please try again shortly.',
+      MH_STORAGE_NOT_READY: 'MH Connekt is still being set up on TaskPilot. Please try again shortly.',
+      MH_SECURE_STORAGE_NOT_READY: 'Secure MH Connekt storage is not ready. Please contact TaskPilot support.',
+      WHATSAPP_ALREADY_CONNECTED: error.message,
+    };
+    return authJson(request, { error: messages[errorCode] || 'We could not connect MH Connekt. Please try again.' }, errorCode === 'WHATSAPP_ALREADY_CONNECTED' ? 409 : errorCode === 'MH_LOGIN_REJECTED' ? 400 : 503);
   }
 }
 
