@@ -20,6 +20,7 @@ export default function AdminDashboard({ admin, overview }) {
       <header className={styles.header}>
         <Link href="/dashboard" className={styles.brand}>Task<span>Pilot</span><small>Admin</small></Link>
         <div className={styles.headerActions}>
+          <Link href="#my-connections" className={styles.myConnectionsLink}>My connections</Link>
           <span className={styles.adminName}>{admin.name}</span>
           <SignOutButton className={styles.signOut} />
         </div>
@@ -40,6 +41,19 @@ export default function AdminDashboard({ admin, overview }) {
               <small>{detail}</small>
             </article>
           ))}
+        </section>
+
+        <section className={styles.connectionsPanel} id="my-connections" aria-labelledby="my-connections-title">
+          <div>
+            <p className={styles.eyebrow}>My connections</p>
+            <h2 id="my-connections-title">Manage your own WhatsApp workspaces.</h2>
+            <p>These are your personal TaskPilot connections. Update details, disconnect a workspace, or open WhatsApp without leaving your admin account.</p>
+          </div>
+          <div className={styles.connectionActions}>
+            <Link href="/manage/taiga" className={styles.connectionAction}>Manage Taiga</Link>
+            <Link href="/manage/mhconnekt" className={styles.connectionAction}>Manage MH Connekt</Link>
+            <Link href="/onboard" className={styles.secondaryAction}>Connect a workspace</Link>
+          </div>
         </section>
 
         <section className={styles.panel}>
