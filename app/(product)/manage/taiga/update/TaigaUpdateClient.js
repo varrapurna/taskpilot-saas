@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import SignOutButton from '../../../_components/SignOutButton';
 import styles from './taiga-update.module.css';
+import loadingStyles from '../../connection-loading.module.css';
 
 const isLocalBrowser = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
 const API_BASE_URL = isLocalBrowser ? '' : (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '');
@@ -95,8 +96,8 @@ export default function TaigaUpdateClient({ initialConnection = null }) {
     }
   }
 
-  if (loading) return <main className={styles.status}><h1>Loading your Taiga connection…</h1><p>Checking your saved details securely.</p></main>;
-  if (error && !connection) return <main className={styles.status}><h1>Taiga connection unavailable</h1><p>{error}</p><Link href="/manage/taiga">Back to Taiga settings</Link></main>;
+  if (loading) return <main className={`${styles.status} ${loadingStyles.fullWidth}`}><h1>Loading your Taiga connection…</h1><p>Checking your saved details securely.</p></main>;
+  if (error && !connection) return <main className={`${styles.status} ${loadingStyles.fullWidth}`}><h1>Taiga connection unavailable</h1><p>{error}</p><Link href="/manage/taiga">Back to Taiga settings</Link></main>;
   if (!connection) return null;
 
   return (
