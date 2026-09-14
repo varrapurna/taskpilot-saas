@@ -63,10 +63,14 @@ test('MH setup reports storage readiness clearly and production deploys the main
   const route = await source('app/api/integrations/mhconnekt/route.js');
   const deployScript = await source('scripts/deploy-aws.sh');
   const repairMigration = await source('database/pocketbase/migrations/1789500001_repair_mhconnekt_collections.js');
+  const fieldRepairMigration = await source('database/pocketbase/migrations/1789500002_repair_mhconnekt_collection_fields.js');
 
   assert.match(route, /MH_STORAGE_NOT_READY/);
   assert.match(route, /MH_SECURE_STORAGE_NOT_READY/);
   assert.match(deployScript, /BRANCH="main"/);
   assert.match(repairMigration, /mhconnekt_connections/);
   assert.match(repairMigration, /mhconnekt_sessions/);
+  assert.match(fieldRepairMigration, /fields\.getByName\(field\.name\)/);
+  assert.match(fieldRepairMigration, /access_token_enc/);
+  assert.match(fieldRepairMigration, /mhconnekt_sessions/);
 });
