@@ -49,4 +49,14 @@ jobs:
       - name: Check the deployed API
         env:
           TASKPILOT_API_URL: ${{ secrets.TASKPILOT_API_URL }}
-        run: curl --fail --show-error --silent "$TASKPILOT_API_URL/api/health"
+        run: |
+          for attempt in {1..12}; do
+            if curl --fail --show-error --silent "$TASKPILOT_API_URL/api/health"; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 12 ]; then
+              echo "API is restarting; retrying in 5 seconds..."
+              sleep 5
+            fi
+          done
+          exit 1
