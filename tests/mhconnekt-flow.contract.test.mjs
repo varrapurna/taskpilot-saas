@@ -46,3 +46,11 @@ test('connected users can manage their MH Connekt connection', async () => {
   assert.match(form, />Update details</);
   assert.match(form, />Disconnect</);
 });
+
+test('an unavailable MH collection cannot break the main dashboard', async () => {
+  const dashboard = await source('app/api/dashboard/route.js');
+
+  assert.match(dashboard, /let mhConnection = null/);
+  assert.match(dashboard, /MH Connekt status is temporarily unavailable on the dashboard/);
+  assert.match(dashboard, /mhConnektConnected: Boolean\(mhConnection\)/);
+});
