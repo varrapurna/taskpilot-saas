@@ -5,17 +5,18 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import SignOutButton from '../../../_components/SignOutButton';
 import styles from '../../taiga/update/taiga-update.module.css';
+import loadingStyles from '../../connection-loading.module.css';
 
 const isLocalBrowser = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
 const API_BASE_URL = isLocalBrowser ? '' : (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '');
 
-export default function MhConnektUpdateClient() {
+export default function MhConnektUpdateClient({ initialConnection = null }) {
   const router = useRouter();
-  const [connection, setConnection] = useState(null);
+  const [connection, setConnection] = useState(initialConnection);
   const [form, setForm] = useState({ phone: '', email: '', password: '', currentTaskPilotPassword: '' });
   const [showMhPassword, setShowMhPassword] = useState(false);
   const [showTaskPilotPassword, setShowTaskPilotPassword] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialConnection);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [updated, setUpdated] = useState(false);
@@ -34,7 +35,7 @@ export default function MhConnektUpdateClient() {
       .catch((requestError) => active && setError(requestError.message || 'We could not load your MH Connekt connection.'))
       .finally(() => active && setLoading(false));
     return () => { active = false; };
-  }, [router]);
+  }, [initialConnection, router]);
 
   function handleChange(event) { setForm((previous) => ({ ...previous, [event.target.name]: event.target.value })); }
 
@@ -50,8 +51,8 @@ export default function MhConnektUpdateClient() {
     finally { setSaving(false); }
   }
 
-  if (loading) return <main className={styles.status}><h1>Loading your MH Connekt connection…</h1><p>Checking your saved details securely.</p></main>;
-  if (error && !connection) return <main className={styles.status}><h1>MH Connekt connection unavailable</h1><p>{error}</p><Link href="/manage/mhconnekt">Back to MH Connekt settings</Link></main>;
+  if (loading) return <main className={`${styles.status} ${loadingStyles.fullWidth}`}><h1>Loading your MH Connekt connection…</h1><p>Checking your saved details securely.</p></main>;
+  if (error && !connection) return <main className={`${styles.status} ${loadingStyles.fullWidth}`}><h1>MH Connekt connection unavailable</h1><p>{error}</p><Link href="/manage/mhconnekt">Back to MH Connekt settings</Link></main>;
   if (!connection) return null;
 
   return <main className={styles.main}>

@@ -1,0 +1,6 @@
+.fullWidth {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 18vh max(20px, calc((100vw - 560px) / 2));
+}
