@@ -110,23 +110,21 @@ export function createWhatsAppClient(userConfig) {
     ], to);
   }
 
-  async function sendProjectPicker(kind, projects, to) {
+  async function sendProjectPicker(kind, projects, page, to) {
     const label = kind === 'issue' ? 'issues' : 'tasks';
-    if (projects.length <= 10) {
-      await sendInteractiveList(
-        `Your open ${label}\n\nChoose a project.`,
-        'Projects',
-        projects.map((project, index) => ({
-          id: `${kind}_project_${index}`,
-          title: truncate(project.name, 24),
-          description: `${project.items.length} open ${label}`,
-        })),
-        to
-      );
-      return;
-    }
-    const lines = projects.map((project, index) => `${index + 1}. ${truncate(project.name, 40)} · ${project.items.length}`).join('\n');
-    await sendMessage(`Your open ${label}\n\n${lines}\n\nChoose a project number.\n0. Home`, to);
+    page = Number.isInteger(page) && page >= 0 ? page : 0;
+    const pageSize = 7;
+    const start = page * pageSize;
+    const visible = projects.slice(start, start + pageSize);
+    const rows = visible.map((project, index) => ({
+      id: `${kind}_project_${start + index}`,
+      title: truncate(project.name, 24),
+      description: `${project.items.length} open ${label}`,
+    }));
+    if (start + pageSize < projects.length) rows.push({ id: `${kind}_project_next`, title: 'More projects', description: 'Show more projects' });
+    if (page > 0) rows.push({ id: `${kind}_project_previous`, title: 'Previous projects', description: 'Show earlier projects' });
+    rows.push({ id: 'project_home', title: 'Home', description: 'Back to TaskPilot home' });
+    await sendInteractiveList(`Your open ${label}\n\nChoose a project.`, 'Projects', rows, to);
   }
 
   async function sendTaskCard(task, index, total, to) {
@@ -138,7 +136,7 @@ export function createWhatsAppClient(userConfig) {
     if (index > 0) rows.push({ id: 'task_previous', title: 'Previous task', description: 'Go back one task' });
     rows.push({ id: 'task_projects', title: 'Projects', description: 'Choose another project' });
     await sendInteractiveList(
-      `${task.project} · ${index + 1} of ${total}\n\n${truncate(task.subject, 110)}\n${task.status}\n${formatDue(task.due)}`,
+      `${task.project} · Task ${index + 1} of ${total}\n\n${truncate(task.subject, 110)}${task.userStory?.subject ? `\n\nUS #${task.userStory.ref || '?'} · ${truncate(task.userStory.subject, 64)}` : ''}\nTask: ${task.status}${task.userStory?.status ? ` · US: ${task.userStory.status}` : ''}\n${formatDue(task.due)}`,
       'Actions',
       rows,
       to
@@ -197,7 +195,6 @@ export function createWhatsAppClient(userConfig) {
   }
 
   async function sendIssueCard(issue, index, total, to) {
-    const metadata = [issue.type, issue.priority, issue.severity].filter(Boolean).join(' · ');
     const rows = [
       { id: 'issue_status', title: 'Change status', description: 'Update this issue' },
       { id: 'issue_reassign', title: 'Reassign', description: 'Choose a project member' },
@@ -207,7 +204,7 @@ export function createWhatsAppClient(userConfig) {
     if (index > 0) rows.push({ id: 'issue_previous', title: 'Previous issue', description: 'Go back one issue' });
     rows.push({ id: 'issue_list', title: 'Issue list', description: 'Return to the list' });
     await sendInteractiveList(
-      `${issue.project} · ${index + 1} of ${total}\n\n#${issue.ref} ${truncate(issue.subject, 100)}\n${issue.status}${metadata ? `\n${metadata}` : ''}\n${formatDue(issue.due)}`,
+      `${issue.project} · Issue ${index + 1} of ${total}\n\n#${issue.ref} ${truncate(issue.subject, 100)}\nStatus: ${issue.status}\n${formatDue(issue.due)}`,
       'Actions',
       rows,
       to
@@ -217,6 +214,7 @@ export function createWhatsAppClient(userConfig) {
   return {
     sendMessage,
     sendButtons,
+    sendInteractiveList,
     sendHome,
     sendProjectPicker,
     sendTaskCard,

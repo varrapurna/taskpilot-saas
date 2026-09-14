@@ -108,7 +108,18 @@ export default function TaigaManageClient() {
           <div><p>{trialMessage(data.billing)}</p><small>Auto-pay is charged only by Razorpay. It is cancelled if you disconnect Taiga below.</small></div>
         </section>
 
-        <section className={styles.guide} aria-label="WhatsApp commands"><p className={styles.eyebrow}>Use it in WhatsApp</p><h2>Start by sending hi.</h2><p>TaskPilot will welcome you. Then send <strong>tasks</strong> to see your open Taiga work, reply with <strong>1</strong> to comment, <strong>2</strong> to change status, or <strong>end</strong> to finish.</p>{welcomeLink && <a href={welcomeLink} target="_blank" rel="noopener noreferrer" className={styles.whatsappButton}>Open WhatsApp and send hi</a>}</section>
+        <section className={styles.guide} aria-label="WhatsApp guide">
+          <p className={styles.eyebrow}>WhatsApp guide</p>
+          <h2>Start with a simple hello.</h2>
+          <p>TaskPilot keeps your work focused. Tap through your tasks or issues; type only when you want to write a comment.</p>
+          <ol className={styles.guideSteps}>
+            <li><span>1</span><div><strong>Send hi</strong><small>TaskPilot opens your personal work menu.</small></div></li>
+            <li><span>2</span><div><strong>Tap Tasks or Issues</strong><small>See only your open work assigned in Taiga.</small></div></li>
+            <li><span>3</span><div><strong>Choose a project and item</strong><small>Stay in that project until you choose another one.</small></div></li>
+            <li><span>4</span><div><strong>Tap an action</strong><small>Change status, reassign an issue, or add a comment.</small></div></li>
+          </ol>
+          {welcomeLink && <a href={welcomeLink} target="_blank" rel="noopener noreferrer" className={styles.whatsappButton}>Open WhatsApp and send hi</a>}
+        </section>
 
         <section className={styles.danger} aria-label="Disconnect Taiga">
           <div><p className={styles.eyebrow}>Disconnect</p><h2>Stop using Taiga with TaskPilot.</h2><p>Disconnecting removes your encrypted Taiga credentials and immediately cancels your Razorpay auto-pay. You will no longer receive Taiga work in WhatsApp.</p></div>

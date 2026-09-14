@@ -49,6 +49,28 @@ export function createTaigaClient(userConfig, cachedToken) {
         { headers: getHeaders() }
       );
 
+      // Taiga's task list includes the parent story title/reference, but not
+      // its status. Load every distinct parent once for compact task context.
+      const storyIds = [...new Set(res.data.map((task) => task.user_story).filter(Boolean))];
+      const stories = new Map();
+      const batchSize = 5;
+      for (let index = 0; index < storyIds.length; index += batchSize) {
+        const batch = storyIds.slice(index, index + batchSize);
+        await Promise.all(batch.map(async (storyId) => {
+          try {
+            const story = await axios.get(`${BASE}/userstories/${storyId}`, { headers: getHeaders() });
+            stories.set(storyId, {
+              ref: story.data.ref,
+              subject: story.data.subject,
+              status: story.data.status_extra_info?.name || null,
+            });
+          } catch (error) {
+            // Missing parent context must never hide an otherwise valid task.
+            console.warn('Unable to load Taiga user story context.', error.response?.status);
+          }
+        }));
+      }
+
       return res.data.map((task) => ({
         id: task.id,
         ref: task.ref,
@@ -57,6 +79,13 @@ export function createTaigaClient(userConfig, cachedToken) {
         due: task.due_date || null,
         project: task.project_extra_info?.name || 'Unknown project',
         projectId: task.project,
+        userStory: task.user_story
+          ? {
+              ref: stories.get(task.user_story)?.ref || task.user_story_extra_info?.ref || null,
+              subject: stories.get(task.user_story)?.subject || task.user_story_extra_info?.subject || null,
+              status: stories.get(task.user_story)?.status || null,
+            }
+          : null,
         version: task.version,
       }));
     });

@@ -1,13 +1,16 @@
 import { getCredentialsByPhone, getSession, saveSession } from '@/server/database/pocketbase';
+import { getMhConnectionByPhone } from '@/server/database/mhconnekt';
 import { decrypt } from '@/server/security/crypto';
 import { createTaigaClient } from '@/server/integrations/taiga';
 import { createWhatsAppClient } from '@/server/integrations/whatsapp';
+import { handleMhConnektMessage } from '@/server/whatsapp/mhconnekt-flow';
 import { verifyMetaWebhookSignature } from '@/server/whatsapp/meta-signature';
 import { getMetaWhatsAppConfig } from '@/server/whatsapp/meta-config';
 
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 const META_APP_SECRET = process.env.META_APP_SECRET;
 const ISSUE_PAGE_SIZE = 5;
+const PROJECT_PAGE_SIZE = 7;
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -51,15 +54,61 @@ export async function POST(request) {
     } catch (_) {}
 
     const wa = createWhatsAppClient(getMetaWhatsAppConfig());
+    const mhConnection = await getMhConnectionByPhone(from);
+    if (!credentials && mhConnection) {
+      await handleMhConnektMessage({ from, command, connection: mhConnection, wa, msgId });
+      return new Response('ok', { status: 200 });
+    }
     if (!credentials) {
       await wa.sendMessage(
-        `You are not connected yet. Visit ${process.env.NEXT_PUBLIC_SITE_URL} to connect Taiga.`,
+        `You are not connected yet. Visit ${process.env.NEXT_PUBLIC_SITE_URL} to connect a workspace.`,
         from
       );
       return new Response('ok', { status: 200 });
     }
 
     session = await loadSession(from);
+
+    // A number can be connected to both services. Always let the person choose
+    // the workspace instead of silently sending every message to Taiga.
+    if (mhConnection) {
+      if (session.lastMsgId === msgId) return new Response('ok', { status: 200 });
+
+      if (['hi', 'hello', 'menu', 'home'].includes(command)) {
+        session.lastMsgId = msgId;
+        session.activeWorkspace = null;
+        resetWorkState(session);
+        session.step = 'choose_workspace';
+        await sendWorkspacePicker(wa, from);
+        return new Response('ok', { status: 200 });
+      }
+
+      if (session.step === 'choose_workspace') {
+        session.lastMsgId = msgId;
+        if (command === 'workspace_mh') {
+          session.activeWorkspace = 'mh';
+          session.step = 'idle';
+          await handleMhConnektMessage({ from, command, connection: mhConnection, wa, msgId });
+          return new Response('ok', { status: 200 });
+        }
+        if (command === 'workspace_taiga') {
+          session.activeWorkspace = 'taiga';
+          resetWorkState(session);
+          await wa.sendHome(from);
+          return new Response('ok', { status: 200 });
+        }
+        await sendWorkspacePicker(wa, from);
+        return new Response('ok', { status: 200 });
+      }
+
+      if (session.activeWorkspace === 'mh') {
+        await handleMhConnektMessage({ from, command, connection: mhConnection, wa, msgId });
+        return new Response('ok', { status: 200 });
+      }
+
+      session.activeWorkspace = 'taiga';
+    }
+
     taiga = createTaigaClient({
       taigaUsername: credentials.taiga_username,
       taigaPassword: decrypt(credentials.taiga_password_enc),
@@ -87,6 +136,8 @@ export async function POST(request) {
       await handleTaskComment(text, session, taiga, wa, from);
     } else if (session.step === 'awaiting_task_status') {
       await handleTaskStatus(command, session, taiga, wa, from);
+    } else if (session.step === 'confirm_task_close') {
+      await confirmTaskClose(command, session, taiga, wa, from);
     } else if (session.step === 'choose_issue_project') {
       await handleProjectChoice(command, 'issue', session, wa, from);
     } else if (session.step === 'issue_list') {
@@ -95,6 +146,8 @@ export async function POST(request) {
       await handleIssueAction(command, session, taiga, wa, from);
     } else if (session.step === 'awaiting_issue_status') {
       await handleIssueStatus(command, session, taiga, wa, from);
+    } else if (session.step === 'confirm_issue_close') {
+      await confirmIssueClose(command, session, taiga, wa, from);
     } else if (session.step === 'awaiting_issue_assignee') {
       await handleIssueAssignee(command, session, wa, from);
     } else if (session.step === 'confirm_issue_assignee') {
@@ -129,8 +182,8 @@ export async function POST(request) {
 async function loadSession(from) {
   const saved = await getSession(from);
   return saved
-    ? { step: saved.step, ...(saved.data || {}) }
-    : { step: 'idle', kind: null, projects: [], activeProjectIndex: null, activeIndex: 0, issuePage: 0 };
+    ? { step: saved.step, projectPage: 0, ...(saved.data || {}) }
+    : { step: 'idle', kind: null, projects: [], activeProjectIndex: null, activeIndex: 0, issuePage: 0, projectPage: 0 };
 }
 
 function resetWorkState(session) {
@@ -140,11 +193,20 @@ function resetWorkState(session) {
   session.activeProjectIndex = null;
   session.activeIndex = 0;
   session.issuePage = 0;
+  session.projectPage = 0;
   session.statusPage = 0;
   session.assigneePage = 0;
   delete session.statuses;
   delete session.members;
   delete session.pendingAssignee;
+  delete session.pendingStatus;
+}
+
+async function sendWorkspacePicker(wa, from) {
+  await wa.sendButtons('TaskPilot\n\nChoose what you want to manage.', [
+    { id: 'workspace_taiga', title: 'Taiga work' },
+    { id: 'workspace_mh', title: 'MH timesheet' },
+  ], from);
 }
 
 function groupByProject(items) {
@@ -199,14 +261,26 @@ async function loadProjects(kind, session, taiga, wa, from) {
   session.activeProjectIndex = null;
   session.activeIndex = 0;
   session.issuePage = 0;
+  session.projectPage = 0;
   session.step = kind === 'task' ? 'choose_task_project' : 'choose_issue_project';
-  await wa.sendProjectPicker(kind, projects, from);
+  await wa.sendProjectPicker(kind, projects, session.projectPage, from);
 }
 
 async function handleProjectChoice(command, kind, session, wa, from) {
-  if (command === '0' || command === 'task_projects') {
+  if (command === '0' || command === 'project_home') {
     resetWorkState(session);
     await wa.sendHome(from);
+    return;
+  }
+
+  if (command === `${kind}_project_next` && (session.projectPage + 1) * PROJECT_PAGE_SIZE < session.projects.length) {
+    session.projectPage += 1;
+    await wa.sendProjectPicker(kind, session.projects, session.projectPage, from);
+    return;
+  }
+  if (command === `${kind}_project_previous` && session.projectPage > 0) {
+    session.projectPage -= 1;
+    await wa.sendProjectPicker(kind, session.projects, session.projectPage, from);
     return;
   }
 
@@ -215,7 +289,7 @@ async function handleProjectChoice(command, kind, session, wa, from) {
   const index = interactiveProject ? Number(interactiveProject[1]) : (choice === null ? -1 : choice - 1);
   const project = session.projects?.[index];
   if (!project) {
-    await wa.sendMessage('Choose a project number, or reply 0 for Home.', from);
+    await wa.sendMessage('Tap a project above, or send *hi* to start again.', from);
     return;
   }
 
@@ -236,7 +310,7 @@ async function showTask(session, wa, from) {
   const task = getCurrentItem(session);
   if (!project || !task) {
     session.step = 'choose_task_project';
-    await wa.sendProjectPicker('task', session.projects, from);
+    await wa.sendProjectPicker('task', session.projects, session.projectPage, from);
     return;
   }
   session.step = 'task_action';
@@ -247,12 +321,14 @@ async function handleTaskAction(command, session, taiga, wa, from) {
   const project = getProject(session);
   if (!project) return handleProjectChoice('0', 'task', session, wa, from);
 
-  if (command === '0') {
+  if (command === '0' || command === 'task_projects') {
     session.step = 'choose_task_project';
-    await wa.sendProjectPicker('task', session.projects, from);
+    await wa.sendProjectPicker('task', session.projects, session.projectPage, from);
   } else if (command === '1' || command === 'task_comment') {
     session.step = 'awaiting_task_comment';
-    await wa.sendMessage('Send your comment.\n0. Back', from);
+    await wa.sendButtons('Send your comment, or tap Cancel.', [
+      { id: 'cancel_task_comment', title: 'Cancel' },
+    ], from);
   } else if (command === '2' || command === 'task_status') {
     const statuses = await taiga.getTaskStatuses(project.id);
     session.statuses = statuses;
@@ -263,7 +339,7 @@ async function handleTaskAction(command, session, taiga, wa, from) {
     if (session.activeIndex + 1 >= project.items.length) {
       session.step = 'choose_task_project';
       await wa.sendMessage(`You have reviewed all tasks in ${project.name}.`, from);
-      await wa.sendProjectPicker('task', session.projects, from);
+      await wa.sendProjectPicker('task', session.projects, session.projectPage, from);
     } else {
       session.activeIndex += 1;
       await showTask(session, wa, from);
@@ -272,12 +348,12 @@ async function handleTaskAction(command, session, taiga, wa, from) {
     session.activeIndex -= 1;
     await showTask(session, wa, from);
   } else {
-    await wa.sendMessage('Reply 1, 2, 3, 4, or 0.', from);
+    await wa.sendMessage('Tap an action above, or send *hi* to start again.', from);
   }
 }
 
 async function handleTaskComment(text, session, taiga, wa, from) {
-  if (text === '0') return showTask(session, wa, from);
+  if (text === '0' || text === 'cancel_task_comment') return showTask(session, wa, from);
   const task = getCurrentItem(session);
   await taiga.postComment(task.id, text);
   await wa.sendMessage('Comment posted.', from);
@@ -302,14 +378,39 @@ async function handleTaskStatus(command, session, taiga, wa, from) {
     ? session.statuses?.[Number(interactiveStatus[1])]
     : session.statuses?.[choice - 1];
   if (!selected) {
-    await wa.sendMessage('Choose a status number, or reply 0 to go back.', from);
+    await wa.sendMessage('Tap a status above, or tap Back.', from);
     return;
   }
+  if (selected.isClosed) {
+    session.pendingStatus = selected;
+    session.step = 'confirm_task_close';
+    await wa.sendButtons(`Mark this task as ${selected.name}?`, [
+      { id: 'confirm_task_close', title: 'Mark as done' },
+      { id: 'cancel_task_close', title: 'Keep open' },
+    ], from);
+    return;
+  }
+  await applyTaskStatus(selected, session, taiga, wa, from);
+}
+
+async function confirmTaskClose(command, session, taiga, wa, from) {
+  if (command === '0' || command === 'cancel_task_close') return showTask(session, wa, from);
+  if (command !== '1' && command !== 'confirm_task_close') {
+    await wa.sendMessage('Tap Mark as done or Keep open.', from);
+    return;
+  }
+  const selected = session.pendingStatus;
+  delete session.pendingStatus;
+  if (!selected) return showTask(session, wa, from);
+  await applyTaskStatus(selected, session, taiga, wa, from);
+}
+
+async function applyTaskStatus(selected, session, taiga, wa, from) {
   const task = getCurrentItem(session);
   const updated = await taiga.changeTaskStatus(task.id, selected.id, task.version);
   task.status = updated.status_extra_info?.name || selected.name;
   task.version = updated.version ?? task.version;
-  await wa.sendMessage(`Task status changed to ${task.status}.`, from);
+  await wa.sendMessage(`Task updated to ${task.status}.`, from);
   if (selected.isClosed) {
     await removeCurrentItem('task', session, wa, from);
     return;
@@ -321,7 +422,7 @@ async function showIssueList(session, wa, from) {
   const project = getProject(session);
   if (!project) {
     session.step = 'choose_issue_project';
-    await wa.sendProjectPicker('issue', session.projects, from);
+    await wa.sendProjectPicker('issue', session.projects, session.projectPage, from);
     return;
   }
   session.step = 'issue_list';
@@ -341,7 +442,7 @@ async function handleIssueListChoice(command, session, wa, from) {
   if (!project) return showIssueList(session, wa, from);
   if (command === '0' || command === 'issue_projects') {
     session.step = 'choose_issue_project';
-    await wa.sendProjectPicker('issue', session.projects, from);
+    await wa.sendProjectPicker('issue', session.projects, session.projectPage, from);
     return;
   }
 
@@ -361,7 +462,7 @@ async function handleIssueListChoice(command, session, wa, from) {
     session.issuePage -= 1;
     await showIssueList(session, wa, from);
   } else {
-    await wa.sendMessage('Choose an issue number, 6 or 7 for pages, or 0 for Projects.', from);
+    await wa.sendMessage('Tap an issue above, or send *hi* to start again.', from);
   }
 }
 
@@ -391,7 +492,9 @@ async function handleIssueAction(command, session, taiga, wa, from) {
     await wa.sendAssigneePicker(issue, members, 0, from);
   } else if (command === '3' || command === 'issue_comment') {
     session.step = 'awaiting_issue_comment';
-    await wa.sendMessage('Send your comment.\n0. Back', from);
+    await wa.sendButtons('Send your comment, or tap Cancel.', [
+      { id: 'cancel_issue_comment', title: 'Cancel' },
+    ], from);
   } else if (command === '4' || command === 'issue_next') {
     if (session.activeIndex + 1 >= project.items.length) {
       session.issuePage = Math.floor(session.activeIndex / ISSUE_PAGE_SIZE);
@@ -405,7 +508,7 @@ async function handleIssueAction(command, session, taiga, wa, from) {
     session.activeIndex -= 1;
     await showIssue(session, wa, from);
   } else {
-    await wa.sendMessage('Reply 1, 2, 3, 4, 5, or 0.', from);
+    await wa.sendMessage('Tap an action above, or send *hi* to start again.', from);
   }
 }
 
@@ -427,14 +530,39 @@ async function handleIssueStatus(command, session, taiga, wa, from) {
     ? session.statuses?.[Number(interactiveStatus[1])]
     : session.statuses?.[choice - 1];
   if (!selected) {
-    await wa.sendMessage('Choose a status number, or reply 0 to go back.', from);
+    await wa.sendMessage('Tap a status above, or tap Back.', from);
     return;
   }
+  if (selected.isClosed) {
+    session.pendingStatus = selected;
+    session.step = 'confirm_issue_close';
+    await wa.sendButtons(`Mark this issue as ${selected.name}?`, [
+      { id: 'confirm_issue_close', title: 'Mark as done' },
+      { id: 'cancel_issue_close', title: 'Keep open' },
+    ], from);
+    return;
+  }
+  await applyIssueStatus(selected, session, taiga, wa, from);
+}
+
+async function confirmIssueClose(command, session, taiga, wa, from) {
+  if (command === '0' || command === 'cancel_issue_close') return showIssue(session, wa, from);
+  if (command !== '1' && command !== 'confirm_issue_close') {
+    await wa.sendMessage('Tap Mark as done or Keep open.', from);
+    return;
+  }
+  const selected = session.pendingStatus;
+  delete session.pendingStatus;
+  if (!selected) return showIssue(session, wa, from);
+  await applyIssueStatus(selected, session, taiga, wa, from);
+}
+
+async function applyIssueStatus(selected, session, taiga, wa, from) {
   const issue = getCurrentItem(session);
   const updated = await taiga.changeIssueStatus(issue.id, selected.id, issue.version);
   issue.status = updated.status_extra_info?.name || selected.name;
   issue.version = updated.version ?? issue.version;
-  await wa.sendMessage(`Issue status changed to ${issue.status}.`, from);
+  await wa.sendMessage(`Issue updated to ${issue.status}.`, from);
   if (selected.isClosed) {
     await removeCurrentItem('issue', session, wa, from);
     return;
@@ -460,7 +588,7 @@ async function handleIssueAssignee(command, session, wa, from) {
     ? session.members?.[Number(interactiveMember[1])]
     : session.members?.[choice - 1];
   if (!member) {
-    await wa.sendMessage('Choose a member number, or reply 0 to go back.', from);
+    await wa.sendMessage('Tap a person above, or tap Back.', from);
     return;
   }
   session.pendingAssignee = member;
@@ -474,7 +602,7 @@ async function handleIssueAssignee(command, session, wa, from) {
 async function confirmIssueAssignee(command, session, taiga, wa, from) {
   if (command === '0' || command === 'cancel_reassign') return showIssue(session, wa, from);
   if (command !== '1' && command !== 'confirm_reassign') {
-    await wa.sendMessage('Reply 1 to confirm, or 0 to cancel.', from);
+    await wa.sendMessage('Tap Confirm or Cancel.', from);
     return;
   }
   const issue = getCurrentItem(session);
@@ -487,7 +615,7 @@ async function confirmIssueAssignee(command, session, taiga, wa, from) {
 }
 
 async function handleIssueComment(text, session, taiga, wa, from) {
-  if (text === '0') return showIssue(session, wa, from);
+  if (text === '0' || text === 'cancel_issue_comment') return showIssue(session, wa, from);
   const issue = getCurrentItem(session);
   await taiga.postIssueComment(issue.id, text);
   await wa.sendMessage('Comment posted.', from);
@@ -515,7 +643,7 @@ async function removeCurrentItem(kind, session, wa, from) {
       return;
     }
     session.step = kind === 'task' ? 'choose_task_project' : 'choose_issue_project';
-    await wa.sendProjectPicker(kind, session.projects, from);
+    await wa.sendProjectPicker(kind, session.projects, session.projectPage, from);
     return;
   }
 

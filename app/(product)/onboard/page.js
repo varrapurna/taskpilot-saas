@@ -28,15 +28,17 @@ const integrations = [
     image: '/integrations/mhconnekt-logo.png',
     imageAlt: 'MH Connekt',
     imageClassName: styles.mhConnektLogo,
-    action: 'Setup coming next',
-    status: 'Next integration',
-    available: false,
+    href: '/onboard/mhconnekt',
+    action: 'Connect MH Connekt',
+    status: 'Available',
+    available: true,
     tone: 'mhConnekt',
   },
 ];
 
 export default function OnboardPage() {
   const [taigaConnected, setTaigaConnected] = useState(null);
+  const [mhConnected, setMhConnected] = useState(null);
   const waNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.replace(/\D/g, '');
   const resumeLink = waNumber ? `https://wa.me/${waNumber}?text=hi` : '/manage/taiga';
 
@@ -53,7 +55,24 @@ export default function OnboardPage() {
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    fetch(`${API_BASE_URL}/api/integrations/mhconnekt`, { credentials: 'include' })
+      .then((response) => response.json().then((body) => ({ response, body })))
+      .then(({ response, body }) => { if (!response.ok) throw new Error(body.error); if (active) setMhConnected(Boolean(body.connected)); })
+      .catch(() => active && setMhConnected(false));
+    return () => { active = false; };
+  }, []);
+
   const displayedIntegrations = integrations.map((integration) => {
+    if (integration.name === 'MH Connekt' && mhConnected === true) return {
+      ...integration,
+      description: 'Your MH Connekt account is connected. Open WhatsApp to manage your timesheet.',
+      href: resumeLink,
+      action: 'Resume MH work',
+      status: 'Connected',
+      connected: true,
+    };
     if (integration.name !== 'Taiga' || taigaConnected !== true) return integration;
     return {
       ...integration,
@@ -113,7 +132,8 @@ export default function OnboardPage() {
                     {integration.action}
                     <span aria-hidden="true">→</span>
                   </Link>
-                  {integration.connected && <Link href="/manage/taiga" className={styles.manageLink}>Manage Taiga connection</Link>}
+                  {integration.connected && integration.name === 'Taiga' && <Link href="/manage/taiga" className={styles.manageLink}>Manage Taiga connection</Link>}
+                  {integration.connected && integration.name === 'MH Connekt' && <Link href="/onboard/mhconnekt" className={styles.manageLink}>Manage MH Connekt connection</Link>}
                   </div>
                 ) : (
                   <button className={styles.disabledButton} type="button" disabled>

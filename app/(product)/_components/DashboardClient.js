@@ -51,6 +51,9 @@ export default function DashboardClient() {
   const { user, integrations, billing } = data;
   const waNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.replace(/\D/g, '');
   const waLink = waNumber ? `https://wa.me/${waNumber}?text=hi` : null;
+  const hasTaiga = integrations.taigaConnected;
+  const hasMhConnekt = integrations.mhConnektConnected;
+  const hasBothWorkspaces = hasTaiga && hasMhConnekt;
 
   return (
     <main className={styles.main}>
@@ -80,29 +83,38 @@ export default function DashboardClient() {
             <Link href={integrations.taigaConnected ? '/manage/taiga' : '/onboard/taiga'} className={styles.cardAction}>{integrations.taigaConnected ? 'Manage Taiga connection' : 'Connect Taiga'} <span aria-hidden="true">→</span></Link>
           </article>
           <article className={styles.integrationCard}>
-            <div className={styles.cardTop}><span className={styles.icon}>M</span><span className={styles.soon}>Coming later</span></div>
+            <div className={styles.cardTop}><span className={styles.icon}>M</span><span className={integrations.mhConnektConnected ? styles.connected : styles.notConnected}>{integrations.mhConnektConnected ? 'Connected' : 'Not connected'}</span></div>
             <h2>MH Connekt</h2>
-            <p>Timesheets, daily summaries, and reminders will be added after the account and billing work is complete.</p>
-            <span className={styles.mutedAction}>Setup will be available later</span>
+            <p>{integrations.mhConnektConnected ? 'Your MH Connekt account is ready for WhatsApp timesheet work.' : 'Connect MH Connekt to prepare daily timesheet activities from WhatsApp.'}</p>
+            <Link href="/onboard/mhconnekt" className={styles.cardAction}>{integrations.mhConnektConnected ? 'Open MH Connekt' : 'Connect MH Connekt'} <span aria-hidden="true">→</span></Link>
           </article>
         </section>
 
         <section className={styles.workGrid}>
           <article className={styles.whatsappPanel}>
             <p className={styles.eyebrow}>Start in WhatsApp</p>
-            <h2>{integrations.taigaConnected ? 'Your Taiga chat is ready.' : 'Connect Taiga to start.'}</h2>
-            <p>{integrations.taigaConnected ? 'Open the TaskPilot WhatsApp chat and send hi. We will welcome you, then you can send tasks to see your open work.' : 'Your WhatsApp number is linked during the Taiga connection. There is no separate WhatsApp setup.'}</p>
-            {integrations.taigaConnected && waLink ? <a href={waLink} target="_blank" rel="noopener noreferrer" className={styles.whatsappButton}>Open WhatsApp and send hi</a> : <Link href="/onboard/taiga" className={styles.whatsappButton}>Connect Taiga</Link>}
+            <h2>{hasTaiga || hasMhConnekt ? 'Your TaskPilot chat is ready.' : 'Connect a workspace to start.'}</h2>
+            <p>{hasBothWorkspaces ? 'Open TaskPilot in WhatsApp and send hi. Then tap the workspace you want to use.' : hasTaiga || hasMhConnekt ? 'Open TaskPilot in WhatsApp and send hi. TaskPilot will show the actions available to you.' : 'Your WhatsApp number is linked during a workspace connection. There is no separate WhatsApp setup.'}</p>
+            {(hasTaiga || hasMhConnekt) && waLink ? <a href={waLink} target="_blank" rel="noopener noreferrer" className={styles.whatsappButton}>Open WhatsApp and send hi</a> : <Link href="/onboard" className={styles.whatsappButton}>Connect a workspace</Link>}
           </article>
 
           <article className={styles.commandsPanel}>
             <p className={styles.eyebrow}>WhatsApp guide</p>
-            <h2>Simple commands</h2>
+            <h2>Simple taps</h2>
             <dl>
-              <div><dt>tasks</dt><dd>See your open Taiga tasks</dd></div>
-              <div><dt>1</dt><dd>Add a comment to the current task</dd></div>
-              <div><dt>2</dt><dd>Change a task or story status</dd></div>
-              <div><dt>end</dt><dd>Finish the current session</dd></div>
+              {hasBothWorkspaces ? <>
+                <div><dt>hi</dt><dd>Choose Taiga work or MH timesheet</dd></div>
+                <div><dt>Taiga work</dt><dd>Manage your assigned tasks and issues</dd></div>
+                <div><dt>MH timesheet</dt><dd>Fill time or review your full week</dd></div>
+              </> : hasMhConnekt ? <>
+                <div><dt>hi</dt><dd>Open your MH Connekt actions</dd></div>
+                <div><dt>Fill time</dt><dd>Choose a task and tap the time worked</dd></div>
+                <div><dt>My week</dt><dd>Review this Monday-to-Sunday timesheet</dd></div>
+              </> : <>
+                <div><dt>hi</dt><dd>Open your Taiga actions</dd></div>
+                <div><dt>My tasks</dt><dd>See assigned open tasks</dd></div>
+                <div><dt>Change status</dt><dd>Update a task or issue with a tap</dd></div>
+              </>}
             </dl>
           </article>
         </section>
