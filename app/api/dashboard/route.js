@@ -19,11 +19,22 @@ export async function GET(request) {
     });
   }
 
-  const [integrations, mhConnection, billing] = await Promise.all([
+  const [integrations, billing] = await Promise.all([
     getIntegrationStatusForUser(client.record.id, client.admin),
-    getMhConnectionForUser(client.record.id, client.admin),
     getBillingSummaryForUser(client.record.id, client.admin),
   ]);
+
+  // The dashboard must remain usable while the optional MH Connekt migration
+  // is being rolled out. A missing or temporarily unavailable MH collection
+  // means "not connected", not a broken TaskPilot dashboard.
+  let mhConnection = null;
+  try {
+    mhConnection = await getMhConnectionForUser(client.record.id, client.admin);
+  } catch (error) {
+    console.warn('MH Connekt status is temporarily unavailable on the dashboard.', {
+      status: error?.status,
+    });
+  }
 
   return authJson(request, {
     role: 'user',
