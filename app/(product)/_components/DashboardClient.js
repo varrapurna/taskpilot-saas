@@ -86,7 +86,7 @@ export default function DashboardClient() {
             <div className={styles.cardTop}><span className={styles.icon}>M</span><span className={integrations.mhConnektConnected ? styles.connected : styles.notConnected}>{integrations.mhConnektConnected ? 'Connected' : 'Not connected'}</span></div>
             <h2>MH Connekt</h2>
             <p>{integrations.mhConnektConnected ? 'Your MH Connekt account is ready for WhatsApp timesheet work.' : 'Connect MH Connekt to prepare daily timesheet activities from WhatsApp.'}</p>
-            <Link href="/onboard/mhconnekt" className={styles.cardAction}>{integrations.mhConnektConnected ? 'Open MH Connekt' : 'Connect MH Connekt'} <span aria-hidden="true">→</span></Link>
+            <Link href={integrations.mhConnektConnected ? '/manage/mhconnekt' : '/onboard/mhconnekt'} className={styles.cardAction}>{integrations.mhConnektConnected ? 'Manage MH Connekt connection' : 'Connect MH Connekt'} <span aria-hidden="true">→</span></Link>
           </article>
         </section>
 

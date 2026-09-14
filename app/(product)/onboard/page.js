@@ -133,7 +133,7 @@ export default function OnboardPage() {
                     <span aria-hidden="true">→</span>
                   </Link>
                   {integration.connected && integration.name === 'Taiga' && <Link href="/manage/taiga" className={styles.manageLink}>Manage Taiga connection</Link>}
-                  {integration.connected && integration.name === 'MH Connekt' && <Link href="/onboard/mhconnekt" className={styles.manageLink}>Manage MH Connekt connection</Link>}
+                  {integration.connected && integration.name === 'MH Connekt' && <Link href="/manage/mhconnekt" className={styles.manageLink}>Manage MH Connekt connection</Link>}
                   </div>
                 ) : (
                   <button className={styles.disabledButton} type="button" disabled>

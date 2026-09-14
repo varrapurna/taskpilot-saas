@@ -2,7 +2,7 @@ import { getAuthenticatedClient, verifyCurrentPassword } from '@/server/auth/acc
 import { authJson, authOptions, authRateLimit, requireTrustedOrigin } from '@/server/http/auth-response';
 import { connectMhConnekt } from '@/server/integrations/mhconnekt';
 import { deleteMhConnectionForUser, getMhConnectionForUser } from '@/server/database/mhconnekt';
-import { getBillingSubscription } from '@/server/billing/subscriptions';
+import { getBillingSubscription, getBillingSummaryForUser } from '@/server/billing/subscriptions';
 
 function phone(value) { return typeof value === 'string' ? value.trim().replace(/^\+/, '') : ''; }
 function email(value) { return typeof value === 'string' ? value.trim().toLowerCase() : ''; }
@@ -12,13 +12,24 @@ export function OPTIONS(request) { return authOptions(request); }
 export async function GET(request) {
   const client = await getAuthenticatedClient();
   if (!client) return authJson(request, { error: 'Please log in.' }, 401);
-  let connection = null;
   try {
-    connection = await getMhConnectionForUser(client.record.id, client.admin);
+    const [connection, billing] = await Promise.all([
+      getMhConnectionForUser(client.record.id, client.admin),
+      getBillingSummaryForUser(client.record.id, client.admin),
+    ]);
+    return authJson(request, {
+      connected: Boolean(connection),
+      connection: connection ? {
+        email: connection.mh_email.replace(/^(.{2}).*(@.*)$/, '$1•••$2'),
+        whatsappNumber: `+${connection.whatsapp_number.slice(0, 3)}••••${connection.whatsapp_number.slice(-4)}`,
+        accountEmail: client.record.email,
+      } : null,
+      billing,
+    });
   } catch (error) {
     console.warn('MH Connekt status is unavailable.', { status: error?.status });
+    return authJson(request, { error: 'We could not load your MH Connekt connection.' }, 503);
   }
-  return authJson(request, { connected: Boolean(connection), connection: connection ? { email: connection.mh_email.replace(/^(.{2}).*(@.*)$/, '$1•••$2'), whatsappNumber: `+${connection.whatsapp_number.slice(0, 3)}••••${connection.whatsapp_number.slice(-4)}` } : null });
 }
 
 export async function POST(request) {

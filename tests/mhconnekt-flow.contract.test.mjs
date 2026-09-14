@@ -42,6 +42,8 @@ test('MH timesheets use MH work mode and the observed task filters', async () =>
 test('connected users can manage their MH Connekt connection', async () => {
   const form = await source('app/(product)/onboard/mhconnekt/MhConnektOnboardForm.js');
   const route = await source('app/api/integrations/mhconnekt/route.js');
+  const mhManage = await source('app/(product)/manage/mhconnekt/MhConnektManageClient.js');
+  const dashboard = await source('app/(product)/_components/DashboardClient.js');
 
   assert.match(form, /method: 'DELETE'/);
   assert.match(form, />Update details</);
@@ -49,6 +51,9 @@ test('connected users can manage their MH Connekt connection', async () => {
   assert.match(form, /Current TaskPilot password/);
   assert.match(route, /verifyCurrentPassword/);
   assert.match(route, /Your current TaskPilot password is not correct/);
+  assert.match(mhManage, /taiga-manage\.module\.css/);
+  assert.match(mhManage, /Update MH Connekt details/);
+  assert.match(dashboard, /'\/manage\/mhconnekt'/);
 });
 
 test('an unavailable MH collection cannot break the main dashboard', async () => {
