@@ -10,3 +10,17 @@
 .roleAdmin, .roleUser { display: inline-flex; padding: 5px 9px; border-radius: 100px; font-size: .72rem; font-weight: 800; } .roleAdmin { color: #a51f3d; background: #fde8ee; } .roleUser { color: #4f5e55; background: #edf0ec; }
 @media (max-width: 820px) { .header { padding: 0 22px; } .content { padding: 42px 20px 60px; } .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .panelHeading, .nextPanel { align-items: flex-start; flex-direction: column; } .adminName { display: none; } }
 @media (max-width: 460px) { .metrics { grid-template-columns: 1fr; } .headerActions { gap: 8px; } .brand { font-size: 1.3rem; } }
+
+.myConnectionsLink { color: #176138; font-size: .86rem; font-weight: 800; }
+.myConnectionsLink:hover { color: #c92f4b; }
+.connectionsPanel { margin-bottom: 24px; padding: 27px 28px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 28px; align-items: end; border: 1px solid #d8ddd5; border-radius: 16px; background: #fff; }
+.connectionsPanel h2 { max-width: 590px; margin-top: 7px; font-size: 1.55rem; letter-spacing: -.05em; }
+.connectionsPanel > div:first-child > p:last-child { max-width: 650px; margin-top: 10px; color: #617066; line-height: 1.55; }
+.connectionActions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.connectionAction, .secondaryAction { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 0 15px; border-radius: 8px; font-size: .84rem; font-weight: 800; }
+.connectionAction { color: #fff; background: #173121; }
+.connectionAction:hover { background: #0e2115; }
+.secondaryAction { border: 1px solid #bdc6bd; color: #304037; background: #fff; }
+.secondaryAction:hover { border-color: #173121; color: #173121; }
+@media (max-width: 820px) { .connectionsPanel { grid-template-columns: 1fr; align-items: start; } .connectionActions { justify-content: flex-start; } }
+@media (max-width: 460px) { .myConnectionsLink { display: none; } .connectionActions { display: grid; grid-template-columns: 1fr; } }

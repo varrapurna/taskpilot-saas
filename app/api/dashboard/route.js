@@ -7,15 +7,32 @@ import { authJson, authOptions } from '@/server/http/auth-response';
 
 export function OPTIONS(request) { return authOptions(request); }
 
+async function getMhConnectionSafely(userId, pb) {
+  try {
+    return await getMhConnectionForUser(userId, pb);
+  } catch (error) {
+    console.warn('MH Connekt status is temporarily unavailable on the dashboard.', {
+      status: error?.status,
+    });
+    return null;
+  }
+}
+
 export async function GET(request) {
   const client = await getAuthenticatedClient();
   if (!client) return authJson(request, { error: 'Please log in.' }, 401);
 
   if (client.record.role === 'admin') {
+    const [overview, integrations, mhConnection] = await Promise.all([
+      getAdminOverview(),
+      getIntegrationStatusForUser(client.record.id, client.admin),
+      getMhConnectionSafely(client.record.id, client.admin),
+    ]);
     return authJson(request, {
       role: 'admin',
       admin: client.record,
-      overview: await getAdminOverview(),
+      overview,
+      integrations: { ...integrations, mhConnektConnected: Boolean(mhConnection) },
     });
   }
 
@@ -27,14 +44,7 @@ export async function GET(request) {
   // The dashboard must remain usable while the optional MH Connekt migration
   // is being rolled out. A missing or temporarily unavailable MH collection
   // means "not connected", not a broken TaskPilot dashboard.
-  let mhConnection = null;
-  try {
-    mhConnection = await getMhConnectionForUser(client.record.id, client.admin);
-  } catch (error) {
-    console.warn('MH Connekt status is temporarily unavailable on the dashboard.', {
-      status: error?.status,
-    });
-  }
+  const mhConnection = await getMhConnectionSafely(client.record.id, client.admin);
 
   return authJson(request, {
     role: 'user',

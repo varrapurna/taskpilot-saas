@@ -65,9 +65,22 @@ test('connected users can manage their MH Connekt connection', async () => {
 test('an unavailable MH collection cannot break the main dashboard', async () => {
   const dashboard = await source('app/api/dashboard/route.js');
 
-  assert.match(dashboard, /let mhConnection = null/);
+  assert.match(dashboard, /async function getMhConnectionSafely/);
+  assert.match(dashboard, /return null;/);
   assert.match(dashboard, /MH Connekt status is temporarily unavailable on the dashboard/);
   assert.match(dashboard, /mhConnektConnected: Boolean\(mhConnection\)/);
+});
+
+test('admins can still manage their own connections', async () => {
+  const adminDashboard = await source('app/(product)/_components/AdminDashboard.js');
+  const onboardLayout = await source('app/(product)/onboard/layout.js');
+
+  assert.match(adminDashboard, /My connections/);
+  assert.match(adminDashboard, /manage\/taiga/);
+  assert.match(adminDashboard, /manage\/mhconnekt/);
+  assert.match(adminDashboard, /Connect a workspace/);
+  assert.doesNotMatch(onboardLayout, /body\.user\?\.role === 'admin'/);
+  assert.match(await source('app/api/dashboard/route.js'), /role: 'admin'[\s\S]*integrations:/);
 });
 
 test('MH setup reports storage readiness clearly and production deploys the main branch', async () => {

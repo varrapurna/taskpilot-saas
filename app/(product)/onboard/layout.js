@@ -19,10 +19,6 @@ export default function OnboardLayout({ children }) {
           router.replace('/account/login');
           return;
         }
-        if (body.user?.role === 'admin') {
-          router.replace('/dashboard');
-          return;
-        }
         if (active) setReady(true);
       })
       .catch(() => router.replace('/account/login'));
