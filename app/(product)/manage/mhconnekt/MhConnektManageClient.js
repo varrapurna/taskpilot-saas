@@ -84,7 +84,7 @@ export default function MhConnektManageClient() {
             <div><dt>WhatsApp number</dt><dd>{data.connection.whatsappNumber}</dd></div>
             <div><dt>TaskPilot account</dt><dd>{data.connection.accountEmail}</dd></div>
           </dl>
-          <Link href="/onboard/mhconnekt?update=1" className={styles.textAction}>Update MH Connekt details →</Link>
+          <Link href="/manage/mhconnekt/update" className={styles.textAction}>Update MH Connekt details →</Link>
         </section>
 
         <section className={styles.billing} aria-label="Subscription details">
