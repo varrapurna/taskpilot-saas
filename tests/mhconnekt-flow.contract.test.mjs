@@ -54,3 +54,12 @@ test('an unavailable MH collection cannot break the main dashboard', async () =>
   assert.match(dashboard, /MH Connekt status is temporarily unavailable on the dashboard/);
   assert.match(dashboard, /mhConnektConnected: Boolean\(mhConnection\)/);
 });
+
+test('MH setup reports storage readiness clearly and production deploys the release branch', async () => {
+  const route = await source('app/api/integrations/mhconnekt/route.js');
+  const deployScript = await source('scripts/deploy-aws.sh');
+
+  assert.match(route, /MH_STORAGE_NOT_READY/);
+  assert.match(route, /MH_SECURE_STORAGE_NOT_READY/);
+  assert.match(deployScript, /BRANCH="release\/main-production"/);
+});

@@ -3,7 +3,7 @@
 # Run this on the Lightsail server as the ubuntu user:
 #   bash scripts/deploy-aws.sh
 #
-# Production deployments use the main branch. The source and PocketBase
+# Production deployments use the release/main-production branch. The source and PocketBase
 # migrations live in GitHub; live PocketBase data remains in
 # /home/ubuntu/pocketbase.
 
@@ -12,7 +12,7 @@ set -euo pipefail
 APP_DIR="/opt/taskpilot/taskpilot-saas"
 PB_DIR="/home/ubuntu/pocketbase"
 PB_MIGRATIONS_DIR="$APP_DIR/database/pocketbase/migrations"
-BRANCH="main"
+BRANCH="release/main-production"
 
 cd "$APP_DIR"
 
