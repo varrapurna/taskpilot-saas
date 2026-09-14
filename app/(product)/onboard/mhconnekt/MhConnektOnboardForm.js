@@ -9,6 +9,7 @@ const isLocalBrowser = typeof window !== 'undefined' && ['localhost', '127.0.0.1
 const API_BASE_URL = isLocalBrowser ? '' : (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '');
 
 export default function MhConnektOnboardForm() {
+  const updateRequested = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('update') === '1';
   const [form, setForm] = useState({ phone: '', email: '', password: '', currentTaskPilotPassword: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [showTaskPilotPassword, setShowTaskPilotPassword] = useState(false);
@@ -29,6 +30,7 @@ export default function MhConnektOnboardForm() {
         if (!active) return;
         setConnection(body.connection || null);
         setConnected(Boolean(body.connected));
+        setUpdating(Boolean(body.connected && updateRequested));
       })
       .catch(() => active && setConnected(false))
       .finally(() => active && setCheckingConnection(false));
