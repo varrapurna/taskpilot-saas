@@ -43,16 +43,22 @@ test('connected users can manage their MH Connekt connection', async () => {
   const form = await source('app/(product)/onboard/mhconnekt/MhConnektOnboardForm.js');
   const route = await source('app/api/integrations/mhconnekt/route.js');
   const mhManage = await source('app/(product)/manage/mhconnekt/MhConnektManageClient.js');
+  const mhUpdate = await source('app/(product)/manage/mhconnekt/update/MhConnektUpdateClient.js');
   const dashboard = await source('app/(product)/_components/DashboardClient.js');
 
   assert.match(form, /method: 'DELETE'/);
   assert.match(form, />Update details</);
   assert.match(form, />Disconnect</);
-  assert.match(form, /Current TaskPilot password/);
+  assert.match(form, /manage\/mhconnekt\/update/);
   assert.match(route, /verifyCurrentPassword/);
   assert.match(route, /Your current TaskPilot password is not correct/);
   assert.match(mhManage, /taiga-manage\.module\.css/);
   assert.match(mhManage, /Update MH Connekt details/);
+  assert.match(mhManage, /manage\/mhconnekt\/update/);
+  assert.match(mhUpdate, /Back to MH Connekt settings/);
+  assert.match(mhUpdate, /Current TaskPilot password/);
+  assert.match(mhUpdate, /method: 'PATCH'/);
+  assert.match(route, /export async function PATCH/);
   assert.match(dashboard, /'\/manage\/mhconnekt'/);
 });
 

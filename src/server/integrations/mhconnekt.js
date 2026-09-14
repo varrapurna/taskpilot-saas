@@ -54,6 +54,23 @@ export async function connectMhConnekt({ userId, phone, email, password, pb }) {
   }, pb);
 }
 
+export async function updateMhConnektConnection({ connection, phone, email, password, pb }) {
+  const nextPhone = phone || connection.whatsapp_number;
+  const nextEmail = email || connection.mh_email;
+  if (nextEmail !== connection.mh_email && !password) {
+    throw providerError('Enter the MH Connekt password when changing its email.', 'MH_PASSWORD_REQUIRED');
+  }
+
+  const tokens = password ? await login(nextEmail, password) : null;
+  return saveMhConnection(connection.user, nextPhone, {
+    whatsapp_number: nextPhone,
+    mh_email: nextEmail,
+    access_token_enc: tokens ? encrypt(tokens.access) : connection.access_token_enc,
+    refresh_token_enc: tokens ? encrypt(tokens.refresh) : connection.refresh_token_enc,
+    access_expires_at: tokens ? expiryFromJwt(tokens.access) : connection.access_expires_at,
+  }, pb);
+}
+
 export async function getMhAccessToken(connection, pb) {
   const expiresAt = new Date(connection.access_expires_at || 0).getTime();
   if (Number.isFinite(expiresAt) && expiresAt > Date.now() + 60_000) return decrypt(connection.access_token_enc);

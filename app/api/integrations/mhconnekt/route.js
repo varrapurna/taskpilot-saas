@@ -1,6 +1,6 @@
 import { getAuthenticatedClient, verifyCurrentPassword } from '@/server/auth/account';
 import { authJson, authOptions, authRateLimit, requireTrustedOrigin } from '@/server/http/auth-response';
-import { connectMhConnekt } from '@/server/integrations/mhconnekt';
+import { connectMhConnekt, updateMhConnektConnection } from '@/server/integrations/mhconnekt';
 import { deleteMhConnectionForUser, getMhConnectionForUser } from '@/server/database/mhconnekt';
 import { getBillingSubscription, getBillingSummaryForUser } from '@/server/billing/subscriptions';
 
@@ -70,6 +70,47 @@ export async function POST(request) {
       WHATSAPP_ALREADY_CONNECTED: error.message,
     };
     return authJson(request, { error: messages[errorCode] || 'We could not connect MH Connekt. Please try again.' }, errorCode === 'WHATSAPP_ALREADY_CONNECTED' ? 409 : errorCode === 'MH_LOGIN_REJECTED' ? 400 : 503);
+  }
+}
+
+export async function PATCH(request) {
+  const rejected = requireTrustedOrigin(request); if (rejected) return rejected;
+  const limited = authRateLimit(request, 'mhconnekt-connection-update', { limit: 5, windowMs: 15 * 60 * 1000 }); if (limited) return limited;
+  const client = await getAuthenticatedClient();
+  if (!client) return authJson(request, { error: 'Please sign in before updating MH Connekt.' }, 401);
+
+  try {
+    const body = await request.json();
+    const requestedPhone = phone(body.phone);
+    const requestedEmail = typeof body.email === 'string' ? email(body.email) : '';
+    const requestedPassword = typeof body.password === 'string' ? body.password : '';
+    const currentTaskPilotPassword = typeof body.currentTaskPilotPassword === 'string' ? body.currentTaskPilotPassword : '';
+    if (requestedPhone && !/^\d{7,20}$/.test(requestedPhone)) return authJson(request, { error: 'Enter a valid WhatsApp number with country code.' }, 400);
+    if (requestedEmail && !/^\S+@\S+\.\S+$/.test(requestedEmail)) return authJson(request, { error: 'Enter a valid MH Connekt email.' }, 400);
+    if (requestedPassword.length > 1024) return authJson(request, { error: 'MH Connekt password is too long.' }, 400);
+    if (!requestedPhone && !requestedEmail && !requestedPassword) return authJson(request, { error: 'Enter at least one new MH Connekt detail to update.' }, 400);
+    if (!(await verifyCurrentPassword(client.record, currentTaskPilotPassword))) return authJson(request, { error: 'Your current TaskPilot password is not correct.' }, 400);
+
+    const connection = await getMhConnectionForUser(client.record.id, client.admin);
+    if (!connection) return authJson(request, { error: 'No MH Connekt connection exists for this account.' }, 404);
+    await updateMhConnektConnection({
+      connection,
+      phone: requestedPhone,
+      email: requestedEmail,
+      password: requestedPassword,
+      pb: client.admin,
+    });
+    return authJson(request, { success: true });
+  } catch (error) {
+    console.error('MH Connekt connection update failed.', { code: error?.code, status: error?.providerStatus || error?.status, message: String(error?.message || '').slice(0, 200) });
+    const messages = {
+      MH_LOGIN_REJECTED: 'Could not connect to MH Connekt. Check the new email and password.',
+      MH_UNAVAILABLE: 'MH Connekt is temporarily unavailable. Please try again shortly.',
+      MH_PASSWORD_REQUIRED: error.message,
+      WHATSAPP_ALREADY_CONNECTED: error.message,
+    };
+    const code = error?.code;
+    return authJson(request, { error: messages[code] || 'We could not update your MH Connekt connection. Please try again.' }, ['MH_LOGIN_REJECTED', 'MH_PASSWORD_REQUIRED'].includes(code) ? 400 : code === 'WHATSAPP_ALREADY_CONNECTED' ? 409 : 503);
   }
 }
 
