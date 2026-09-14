@@ -1,4 +1,4 @@
-import { getAuthenticatedClient } from '@/server/auth/account';
+import { getAuthenticatedClient, verifyCurrentPassword } from '@/server/auth/account';
 import { authJson, authOptions, authRateLimit, requireTrustedOrigin } from '@/server/http/auth-response';
 import { connectMhConnekt } from '@/server/integrations/mhconnekt';
 import { deleteMhConnectionForUser, getMhConnectionForUser } from '@/server/database/mhconnekt';
@@ -33,15 +33,24 @@ export async function POST(request) {
     }
     const body = await request.json();
     const whatsappNumber = phone(body.phone); const mhEmail = email(body.email); const password = typeof body.password === 'string' ? body.password : '';
+    const currentTaskPilotPassword = typeof body.currentTaskPilotPassword === 'string' ? body.currentTaskPilotPassword : '';
     if (!/^\d{7,20}$/.test(whatsappNumber)) return authJson(request, { error: 'Enter a valid WhatsApp number with country code.' }, 400);
     if (!/^\S+@\S+\.\S+$/.test(mhEmail) || password.length < 1 || password.length > 1024) return authJson(request, { error: 'Enter your MH Connekt email and password.' }, 400);
+    const existingConnection = await getMhConnectionForUser(client.record.id, client.admin);
+    if (existingConnection && !(await verifyCurrentPassword(client.record, currentTaskPilotPassword))) {
+      return authJson(request, { error: 'Your current TaskPilot password is not correct.' }, 400);
+    }
     await connectMhConnekt({ userId: client.record.id, phone: whatsappNumber, email: mhEmail, password, pb: client.admin });
     return authJson(request, { success: true });
   } catch (error) {
     const errorCode = error?.code
       || (/ENCRYPTION_MASTER_KEY/.test(error?.message || '') ? 'MH_SECURE_STORAGE_NOT_READY' : '')
       || (error?.status === 404 ? 'MH_STORAGE_NOT_READY' : '');
-    console.error('MH Connekt connection failed.', { code: errorCode, status: error?.providerStatus || error?.status });
+    console.error('MH Connekt connection failed.', {
+      code: errorCode,
+      status: error?.providerStatus || error?.status,
+      message: String(error?.message || '').slice(0, 200),
+    });
     const messages = {
       MH_LOGIN_REJECTED: 'Could not sign in to MH Connekt. Check your email and password.',
       MH_UNAVAILABLE: 'MH Connekt is temporarily unavailable. Please try again shortly.',
