@@ -58,8 +58,11 @@ test('an unavailable MH collection cannot break the main dashboard', async () =>
 test('MH setup reports storage readiness clearly and production deploys the main branch', async () => {
   const route = await source('app/api/integrations/mhconnekt/route.js');
   const deployScript = await source('scripts/deploy-aws.sh');
+  const repairMigration = await source('database/pocketbase/migrations/1789500001_repair_mhconnekt_collections.js');
 
   assert.match(route, /MH_STORAGE_NOT_READY/);
   assert.match(route, /MH_SECURE_STORAGE_NOT_READY/);
   assert.match(deployScript, /BRANCH="main"/);
+  assert.match(repairMigration, /mhconnekt_connections/);
+  assert.match(repairMigration, /mhconnekt_sessions/);
 });
