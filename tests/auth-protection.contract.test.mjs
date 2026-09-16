@@ -35,3 +35,37 @@ test('password reset emails have a unique branded production repair migration', 
   assert.match(template, /\{APP_URL\}\/account\/reset\?token=\{TOKEN\}/);
   assert.match(forgotPassword, /Password reset email request failed/);
 });
+
+test('Phase 1 blocks normal-user integrations while preserving admin testing access', async () => {
+  const feature = await source('src/server/features/integrations.js');
+  const taiga = await source('app/api/integrations/taiga/route.js');
+  const mh = await source('app/api/integrations/mhconnekt/route.js');
+  const register = await source('app/api/register/route.js');
+  const billing = await source('app/api/billing/subscription/route.js');
+  const webhook = await source('app/api/webhook/route.js');
+  const dashboard = await source('app/(product)/_components/DashboardClient.js');
+  const onboarding = await source('app/(product)/onboard/page.js');
+
+  assert.match(feature, /TASKPILOT_INTEGRATIONS_ENABLED/);
+  assert.match(feature, /user\?\.role === 'admin'/);
+  assert.match(feature, /INTEGRATIONS_LOCKED/);
+  for (const route of [taiga, mh, register, billing]) {
+    assert.match(route, /canUseIntegrations/);
+    assert.match(route, /integrationsLockedResponse/);
+  }
+  assert.match(webhook, /canUserIdUseIntegrations/);
+  assert.match(webhook, /Phase 1 launch/);
+  assert.match(dashboard, /Connections are coming soon/);
+  assert.match(onboarding, /Connections are coming soon/);
+});
+
+test('verification links always open the public site and explain cross-device sign-in', async () => {
+  const template = await source('database/pocketbase/migrations/1789700000_pin_taskpilot_verification_link.js');
+  const accountPage = await source('app/(auth)/account/[mode]/page.js');
+  const verificationRoute = await source('app/api/auth/verify-email/route.js');
+
+  assert.match(template, /https:\/\/www\.taskpilotapp\.online\/account\/verify\?token=\{TOKEN\}/);
+  assert.match(template, /any phone or computer/);
+  assert.match(accountPage, /any phone or computer/);
+  assert.match(verificationRoute, /confirmVerification\(token\)/);
+});

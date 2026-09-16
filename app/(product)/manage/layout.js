@@ -1,14 +1,13 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 const isLocalBrowser = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
 const API_BASE_URL = isLocalBrowser ? '' : (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '');
 
-export default function OnboardLayout({ children }) {
+export default function ManageLayout({ children }) {
   const router = useRouter();
-  const pathname = usePathname();
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -20,8 +19,8 @@ export default function OnboardLayout({ children }) {
           router.replace('/account/login');
           return;
         }
-        if (!body.integrationsAvailable && pathname !== '/onboard') {
-          router.replace('/onboard');
+        if (!body.integrationsAvailable) {
+          router.replace('/dashboard');
           return;
         }
         if (active) setReady(true);
@@ -29,7 +28,7 @@ export default function OnboardLayout({ children }) {
       .catch(() => router.replace('/account/login'));
 
     return () => { active = false; };
-  }, [pathname, router]);
+  }, [router]);
 
   return ready ? children : null;
 }

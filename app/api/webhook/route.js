@@ -6,6 +6,7 @@ import { createWhatsAppClient } from '@/server/integrations/whatsapp';
 import { handleMhConnektMessage } from '@/server/whatsapp/mhconnekt-flow';
 import { verifyMetaWebhookSignature } from '@/server/whatsapp/meta-signature';
 import { getMetaWhatsAppConfig } from '@/server/whatsapp/meta-config';
+import { canUserIdUseIntegrations } from '@/server/features/integrations';
 
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 const META_APP_SECRET = process.env.META_APP_SECRET;
@@ -55,6 +56,11 @@ export async function POST(request) {
 
     const wa = createWhatsAppClient(getMetaWhatsAppConfig());
     const mhConnection = await getMhConnectionByPhone(from);
+    const connectionOwnerIds = [credentials?.user, mhConnection?.user].filter(Boolean);
+    if (connectionOwnerIds.length && !(await Promise.all(connectionOwnerIds.map(canUserIdUseIntegrations))).every(Boolean)) {
+      await wa.sendMessage('TaskPilot connections are not available during the Phase 1 launch. Please check back soon.', from);
+      return new Response('ok', { status: 200 });
+    }
     if (!credentials && mhConnection) {
       await handleMhConnektMessage({ from, command, connection: mhConnection, wa, msgId });
       return new Response('ok', { status: 200 });
