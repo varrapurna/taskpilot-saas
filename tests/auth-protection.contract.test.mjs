@@ -45,6 +45,8 @@ test('Phase 1 blocks normal-user integrations while preserving admin testing acc
   const webhook = await source('app/api/webhook/route.js');
   const dashboard = await source('app/(product)/_components/DashboardClient.js');
   const onboarding = await source('app/(product)/onboard/page.js');
+  const taigaForm = await source('app/(product)/onboard/taiga/_components/TaigaOnboardForm.js');
+  const mhForm = await source('app/(product)/onboard/mhconnekt/MhConnektOnboardForm.js');
 
   assert.match(feature, /TASKPILOT_INTEGRATIONS_ENABLED/);
   assert.match(feature, /user\?\.role === 'admin'/);
@@ -55,8 +57,12 @@ test('Phase 1 blocks normal-user integrations while preserving admin testing acc
   }
   assert.match(webhook, /canUserIdUseIntegrations/);
   assert.match(webhook, /Phase 1 launch/);
-  assert.match(dashboard, /Connections are coming soon/);
-  assert.match(onboarding, /Connections are coming soon/);
+  assert.match(dashboard, /Integrations/);
+  assert.match(onboarding, /Choose the tools you use/);
+  for (const form of [taigaForm, mhForm]) {
+    assert.match(form, /api\/auth\/me/);
+    assert.match(form, /Connection setup is temporarily locked/);
+  }
 });
 
 test('verification links always open the public site and explain cross-device sign-in', async () => {
