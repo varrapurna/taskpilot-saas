@@ -96,7 +96,7 @@ export default function AccountPage() {
       {!token && <p className={styles.error}>This verification link is incomplete.</p>}
       {token && !verified && !error && <p className={styles.intro}>We are securely verifying your email address.</p>}
       {verified && <>
-        <p className={styles.intro}>Your TaskPilot account is ready. You can close this tab or sign in now to connect your workspace.</p>
+        <p className={styles.intro}>Your TaskPilot account is ready. This verification is saved to your account, so you can now sign in with your email and password from any phone or computer.</p>
         <Link href="/account/login" className={styles.submitLink}>Sign in to TaskPilot</Link>
       </>}
       {message && <p className={styles.success}>{message}</p>}

@@ -1,6 +1,7 @@
 import { getAuthenticatedClient } from '@/server/auth/account';
 import { createRazorpaySubscriptionForUser } from '@/server/billing/subscriptions';
 import { authJson, authOptions, authRateLimit, requireTrustedOrigin } from '@/server/http/auth-response';
+import { canUseIntegrations, integrationsLockedResponse } from '@/server/features/integrations';
 
 export function OPTIONS(request) { return authOptions(request); }
 
@@ -13,6 +14,7 @@ export async function POST(request) {
 
   const client = await getAuthenticatedClient();
   if (!client) return authJson(request, { error: 'Please log in.' }, 401);
+  if (!canUseIntegrations(client.record)) return integrationsLockedResponse(request);
 
   try {
     const checkout = await createRazorpaySubscriptionForUser(client.record);

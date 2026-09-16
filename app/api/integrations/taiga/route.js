@@ -3,6 +3,7 @@ import { cancelRazorpaySubscriptionForUser, getBillingSummaryForUser } from '@/s
 import { deleteCredentialsForUser, deleteSession, getCredentialsForUser, saveSession, updateCredentialsForUser } from '@/server/database/pocketbase';
 import { decrypt, encrypt } from '@/server/security/crypto';
 import { authJson, authOptions, authRateLimit, requireTrustedOrigin } from '@/server/http/auth-response';
+import { canUseIntegrations, integrationsLockedResponse } from '@/server/features/integrations';
 import axios from 'axios';
 
 const TAIGA_API_BASE_URL = 'https://api.taiga.io/api/v1';
@@ -18,6 +19,7 @@ export function OPTIONS(request) { return authOptions(request); }
 export async function GET(request) {
   const client = await getAuthenticatedClient();
   if (!client) return authJson(request, { error: 'Please log in.' }, 401);
+  if (!canUseIntegrations(client.record)) return integrationsLockedResponse(request);
 
   try {
     const [credentials, billing] = await Promise.all([
@@ -47,6 +49,7 @@ export async function DELETE(request) {
 
   const client = await getAuthenticatedClient();
   if (!client) return authJson(request, { error: 'Please log in.' }, 401);
+  if (!canUseIntegrations(client.record)) return integrationsLockedResponse(request);
 
   try {
     // Cancel billing first. If Razorpay rejects the request, keep Taiga
@@ -79,6 +82,7 @@ export async function PATCH(request) {
 
   const client = await getAuthenticatedClient();
   if (!client) return authJson(request, { error: 'Please log in.' }, 401);
+  if (!canUseIntegrations(client.record)) return integrationsLockedResponse(request);
 
   try {
     const body = await request.json();
