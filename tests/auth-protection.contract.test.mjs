@@ -85,6 +85,8 @@ test('admin billing records Razorpay history without exposing private provider d
   assert.match(subscriptions, /\/invoices\?subscription_id=/);
   assert.match(syncRoute, /client\.record\.role !== 'admin'/);
   assert.match(overview, /totalCollected/);
+  assert.doesNotMatch(overview, /billing_subscriptions'\)\.getFullList\(\{ sort:/);
+  assert.doesNotMatch(overview, /billing_webhook_events'\)\.getFullList\(\{ sort:/);
   assert.match(dashboard, /Sync Razorpay history/);
 });
 

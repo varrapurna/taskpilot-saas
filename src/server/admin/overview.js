@@ -92,8 +92,12 @@ export async function getAdminOverview() {
     filter: `last_login_at >= "${pocketBaseDate(monthAgo)}"`,
   });
   const recentUsers = await pb.collection('users').getList(1, 25, { sort: '-created' });
-  const billingSubscriptions = await pb.collection('billing_subscriptions').getFullList({ sort: '-updated' });
-  const billingEvents = await pb.collection('billing_webhook_events').getFullList({ sort: '-occurred_at,-created' });
+  // Older PocketBase billing collections can reject server-side sorting on
+  // system or newly added fields. Fetch the private records plainly and sort
+  // them below in JavaScript, so the admin dashboard stays available during
+  // and after a billing schema rollout.
+  const billingSubscriptions = await pb.collection('billing_subscriptions').getFullList();
+  const billingEvents = await pb.collection('billing_webhook_events').getFullList();
   const usersById = new Map((await pb.collection('users').getFullList()).map((user) => [user.id, user]));
   const subscriptionsById = new Map(billingSubscriptions.map((subscription) => [subscription.id, subscription]));
   const eventsBySubscription = new Map();
@@ -113,7 +117,10 @@ export async function getAdminOverview() {
       uniquePayments.set(key, event);
     }
   }
-  const subscriptions = billingSubscriptions.map((subscription) => toSubscriptionSummary(subscription, usersById, eventsBySubscription));
+  const subscriptions = billingSubscriptions
+    .slice()
+    .sort((left, right) => dateValue(right.updated || right.created) - dateValue(left.updated || left.created))
+    .map((subscription) => toSubscriptionSummary(subscription, usersById, eventsBySubscription));
   const history = billingEvents
     .slice()
     .sort((left, right) => dateValue(right.occurred_at || right.created) - dateValue(left.occurred_at || left.created))
