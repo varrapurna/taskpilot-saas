@@ -15,9 +15,12 @@ function discardOldestBucket() {
   if (oldestKey) buckets.delete(oldestKey);
 }
 
-export function consumeRateLimit(request, scope, { limit, windowMs }) {
+export function consumeRateLimit(request, scope, { limit, windowMs, key: providedKey }) {
   const now = Date.now();
-  const key = `${scope}:${clientKey(request)}`;
+  const partitionKey = typeof providedKey === 'string' && providedKey.trim()
+    ? providedKey.trim().slice(0, 320)
+    : clientKey(request);
+  const key = `${scope}:${partitionKey}`;
   const current = buckets.get(key);
 
   if (!current || now >= current.resetAt) {

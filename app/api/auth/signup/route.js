@@ -4,9 +4,6 @@ import { createClientAccount, normalizeEmail, validatePassword } from '@/server/
 export function OPTIONS(request) { return authOptions(request); }
 
 export async function POST(request) {
-  const rateLimited = authRateLimit(request, 'auth-signup', { limit: 5, windowMs: 60 * 60 * 1000 });
-  if (rateLimited) return rateLimited;
-
   try {
     const { name, email, password } = await request.json();
     const cleanName = typeof name === 'string' ? name.trim() : '';
@@ -18,6 +15,14 @@ export async function POST(request) {
     if (!validatePassword(password)) {
       return authJson(request, { error: 'Use a password with at least 12 characters.' }, 400);
     }
+
+    // A shared home, office, or mobile network must not stop different people
+    // from registering. Keep a broad network limit plus a tighter per-email
+    // limit to prevent account creation abuse.
+    const networkLimited = authRateLimit(request, 'auth-signup-network', { limit: 25, windowMs: 60 * 60 * 1000 });
+    if (networkLimited) return networkLimited;
+    const emailLimited = authRateLimit(request, 'auth-signup-email', { limit: 3, windowMs: 60 * 60 * 1000, key: cleanEmail });
+    if (emailLimited) return emailLimited;
 
     await createClientAccount({ name: cleanName, email: cleanEmail, password });
     return authJson(request, { success: true }, 201);
