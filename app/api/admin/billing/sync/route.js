@@ -19,7 +19,7 @@ export async function POST(request) {
     return authJson(request, { success: true, ...(await syncRazorpayBillingHistory()) });
   } catch (error) {
     console.error('Razorpay billing history sync failed.', {
-      status: error?.providerStatus,
+      status: error?.providerStatus || error?.status,
       message: error?.message,
     });
     return authJson(request, { error: 'Razorpay history could not be synced. Check the billing configuration and try again.' }, 503);

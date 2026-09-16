@@ -455,7 +455,9 @@ async function upsertHistoricInvoice(pb, subscription, invoice) {
 export async function syncRazorpayBillingHistory() {
   const config = getRazorpayConfig();
   const pb = await createAdminClient();
-  const subscriptions = await pb.collection('billing_subscriptions').getFullList({ sort: '-created' });
+  // Some older PocketBase collections reject server-side sorting on system
+  // fields. History sync does not depend on ordering, so fetch safely.
+  const subscriptions = await pb.collection('billing_subscriptions').getFullList();
   let syncedSubscriptions = 0;
   let syncedInvoices = 0;
 
