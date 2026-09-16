@@ -29,6 +29,7 @@ function labelForStatus(value) {
 export default function AdminDashboard({ admin, overview }) {
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState('');
+  const [selectedHistoryUser, setSelectedHistoryUser] = useState(null);
   const cards = [
     ['Total users', overview.metrics.totalUsers, 'All registered accounts'],
     ['Verified users', overview.metrics.verifiedUsers, 'Email verification completed'],
@@ -42,6 +43,15 @@ export default function AdminDashboard({ admin, overview }) {
     ['Payment issues', billing.metrics.failedPayments, 'Failed or past-due payment records'],
     ['Collected', formatMoney(billing.metrics.totalCollected), 'Recorded paid subscription invoices'],
   ];
+  const selectedUser = overview.users.find((user) => user.id === selectedHistoryUser) || null;
+  const visibleHistory = selectedHistoryUser
+    ? billing.history.filter((payment) => payment.userId === selectedHistoryUser)
+    : billing.history;
+
+  function viewPaymentHistory(userId) {
+    setSelectedHistoryUser(userId);
+    window.requestAnimationFrame(() => document.getElementById('payment-history')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  }
 
   async function syncBillingHistory() {
     setSyncing(true);
@@ -105,7 +115,7 @@ export default function AdminDashboard({ admin, overview }) {
           </div>
           <div className={styles.tableWrap}>
             <table>
-              <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Verification</th><th>Last sign-in</th><th>Joined</th></tr></thead>
+              <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Verification</th><th>Last sign-in</th><th>Joined</th><th>Payments</th></tr></thead>
               <tbody>
                 {overview.users.map((user) => (
                   <tr key={user.id}>
@@ -115,6 +125,7 @@ export default function AdminDashboard({ admin, overview }) {
                     <td><span className={user.verified ? styles.verified : styles.unverified}>{user.verified ? 'Verified' : 'Pending'}</span></td>
                     <td>{formatDate(user.lastLoginAt)}</td>
                     <td>{formatDate(user.created)}</td>
+                    <td><button type="button" className={styles.historyButton} onClick={() => viewPaymentHistory(user.id)}>Payment history</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -152,16 +163,16 @@ export default function AdminDashboard({ admin, overview }) {
           </div>
         </section>
 
-        <section className={styles.panel} aria-labelledby="payment-history-title">
-          <div className={styles.panelHeading}><div><p className={styles.eyebrow}>Payment history</p><h2 id="payment-history-title">Razorpay activity</h2></div><span>Latest {billing.history.length}</span></div>
+        <section className={styles.panel} id="payment-history" aria-labelledby="payment-history-title">
+          <div className={styles.panelHeading}><div><p className={styles.eyebrow}>Payment history</p><h2 id="payment-history-title">{selectedUser ? `${selectedUser.name}'s Razorpay activity` : 'Razorpay activity'}</h2></div><div className={styles.historyActions}>{selectedUser ? <button type="button" className={styles.historyButton} onClick={() => setSelectedHistoryUser(null)}>Show all payments</button> : null}<span>{selectedUser ? `${visibleHistory.length} records` : `All ${visibleHistory.length}`}</span></div></div>
           <div className={styles.tableWrap}>
             <table className={styles.billingTable}>
               <thead><tr><th>Date</th><th>User</th><th>Activity</th><th>Status</th><th>Amount</th><th>Detail</th></tr></thead>
-              <tbody>{billing.history.map((payment) => <tr key={payment.id}>
+              <tbody>{visibleHistory.map((payment) => <tr key={payment.id}>
                 <td>{formatBillingDate(payment.occurredAt)}</td><td><strong>{payment.userName}</strong><small>{payment.userEmail}</small></td><td>{labelForStatus(payment.eventType)}</td><td>{labelForStatus(payment.status)}</td><td>{payment.amount ? formatMoney(payment.amount, payment.currency) : '—'}</td><td>{payment.failureReason || '—'}</td>
               </tr>)}</tbody>
             </table>
-            {!billing.history.length && <p className={styles.empty}>Use “Sync Razorpay history” to load previous invoices, then future activity will appear automatically.</p>}
+            {!visibleHistory.length && <p className={styles.empty}>{selectedUser ? 'This user has no recorded Razorpay payment yet.' : 'Use “Sync Razorpay history” to load previous invoices, then future activity will appear automatically.'}</p>}
           </div>
         </section>
       </section>

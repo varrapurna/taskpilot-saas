@@ -39,6 +39,7 @@ function toPaymentSummary(record, usersById, subscriptionsById) {
   const user = subscription ? usersById.get(subscription.user) : null;
   return {
     id: record.id,
+    userId: subscription?.user || null,
     eventType: record.event_type || 'unknown',
     status: record.payment_status || 'recorded',
     amount: Number(record.amount || 0),
@@ -124,7 +125,6 @@ export async function getAdminOverview() {
   const history = billingEvents
     .slice()
     .sort((left, right) => dateValue(right.occurred_at || right.created) - dateValue(left.occurred_at || left.created))
-    .slice(0, 40)
     .map((event) => toPaymentSummary(event, usersById, subscriptionsById));
 
   return {
