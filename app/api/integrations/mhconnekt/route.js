@@ -2,7 +2,8 @@ import { getAuthenticatedClient, verifyCurrentPassword } from '@/server/auth/acc
 import { authJson, authOptions, authRateLimit, requireTrustedOrigin } from '@/server/http/auth-response';
 import { connectMhConnekt, updateMhConnektConnection } from '@/server/integrations/mhconnekt';
 import { deleteMhConnectionForUser, getMhConnectionForUser } from '@/server/database/mhconnekt';
-import { getBillingSubscription, getBillingSummaryForUser } from '@/server/billing/subscriptions';
+import { cancelRazorpaySubscriptionForUser, getBillingSubscription, getBillingSummaryForUser } from '@/server/billing/subscriptions';
+import { getCredentialsForUser } from '@/server/database/pocketbase';
 
 function phone(value) { return typeof value === 'string' ? value.trim().replace(/^\+/, '') : ''; }
 function email(value) { return typeof value === 'string' ? value.trim().toLowerCase() : ''; }
@@ -118,6 +119,13 @@ export async function DELETE(request) {
   const rejected = requireTrustedOrigin(request); if (rejected) return rejected;
   const client = await getAuthenticatedClient();
   if (!client) return authJson(request, { error: 'Please log in.' }, 401);
-  await deleteMhConnectionForUser(client.record.id, client.admin);
-  return authJson(request, { success: true });
+  try {
+    const taigaCredentials = await getCredentialsForUser(client.record.id, client.admin);
+    if (!taigaCredentials) await cancelRazorpaySubscriptionForUser(client.record.id, client.admin);
+    await deleteMhConnectionForUser(client.record.id, client.admin);
+    return authJson(request, { success: true });
+  } catch (error) {
+    console.error('MH Connekt disconnect failed.', error?.code || error?.message);
+    return authJson(request, { error: 'We could not safely update your subscription, so your MH Connekt connection is still active. Please try again.' }, 502);
+  }
 }

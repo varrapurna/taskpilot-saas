@@ -68,3 +68,41 @@ test('verification links always open the public site and explain cross-device si
   assert.match(accountPage, /any phone or computer/);
   assert.match(verificationRoute, /confirmVerification\(token\)/);
 });
+
+test('admin billing records Razorpay history without exposing private provider data', async () => {
+  const migration = await source('database/pocketbase/migrations/1789800000_add_billing_history_fields.js');
+  const webhook = await source('src/server/billing/razorpay-webhook.js');
+  const subscriptions = await source('src/server/billing/subscriptions.js');
+  const overview = await source('src/server/admin/overview.js');
+  const syncRoute = await source('app/api/admin/billing/sync/route.js');
+  const dashboard = await source('app/(product)/_components/AdminDashboard.js');
+
+  assert.match(migration, /billing_webhook_events/);
+  assert.match(migration, /payment_id/);
+  assert.match(migration, /cancelled_at/);
+  assert.match(webhook, /eventDetails/);
+  assert.match(subscriptions, /syncRazorpayBillingHistory/);
+  assert.match(subscriptions, /\/invoices\?subscription_id=/);
+  assert.match(syncRoute, /client\.record\.role !== 'admin'/);
+  assert.match(overview, /totalCollected/);
+  assert.match(dashboard, /Sync Razorpay history/);
+});
+
+test('disconnect keeps a paid period but stops only the next renewal for the final workspace', async () => {
+  const subscriptions = await source('src/server/billing/subscriptions.js');
+  const taiga = await source('app/api/integrations/taiga/route.js');
+  const mh = await source('app/api/integrations/mhconnekt/route.js');
+  const billingPanel = await source('app/(product)/_components/BillingPanel.js');
+  const taigaOnboarding = await source('app/(product)/onboard/taiga/_components/TaigaOnboardForm.js');
+  const mhOnboarding = await source('app/(product)/onboard/mhconnekt/MhConnektOnboardForm.js');
+
+  assert.match(subscriptions, /cancel_at_cycle_end: Boolean\(keepPaidAccess\)/);
+  assert.match(subscriptions, /providerSubscription\.status === 'active'/);
+  assert.match(taiga, /getMhConnectionForUser/);
+  assert.match(mh, /getCredentialsForUser/);
+  assert.match(taiga, /if \(!mhConnection\) await cancelRazorpaySubscriptionForUser/);
+  assert.match(mh, /if \(!taigaCredentials\) await cancelRazorpaySubscriptionForUser/);
+  assert.match(billingPanel, /Future auto-pay is stopped/);
+  assert.match(taigaOnboarding, /Reconnect this workspace now at no extra cost/);
+  assert.match(mhOnboarding, /Reconnect this workspace now at no extra cost/);
+});

@@ -29,6 +29,22 @@ function loadRazorpayCheckout() {
   });
 }
 
+function billingOffer(billing) {
+  if (!billing?.autopayAccepted) {
+    return {
+      title: 'Start your 7-day free trial.',
+      detail: '₹5 refundable mandate verification today. ₹100/month starts after your 7-day trial.',
+    };
+  }
+  if (billing?.cancelAtPeriodEnd) {
+    const periodEnd = new Date(billing.currentPeriodEndsAt);
+    const date = Number.isNaN(periodEnd.getTime()) ? 'the end of your current paid period' : new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium' }).format(periodEnd);
+    return { title: `Your paid access ends ${date}.`, detail: 'Reconnect this workspace now at no extra cost. Future auto-pay is already stopped.' };
+  }
+  if (billing?.status === 'active') return { title: 'Your ₹100/month plan is active.', detail: 'Connect MH Connekt now. No extra charge is required.' };
+  return { title: 'Your free trial is active.', detail: 'Connect MH Connekt now. Your first ₹100 charge starts only after the trial ends.' };
+}
+
 export default function MhConnektOnboardForm() {
   const [form, setForm] = useState({ phone: '', email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
@@ -181,6 +197,7 @@ export default function MhConnektOnboardForm() {
   }
 
   const approved = Boolean(billing?.autopayAccepted);
+  const offer = billingOffer(billing);
 
   return <main className={styles.setupMain}>
     <header className={styles.setupHeader}><Link href="/dashboard" className={styles.brand}>Task<span>Pilot</span></Link><div className={styles.setupHeaderActions}><Link href="/onboard" className={styles.headerLink}>Integrations</Link><SignOutButton className={styles.signOut} /></div></header>
@@ -194,7 +211,7 @@ export default function MhConnektOnboardForm() {
             <div className={styles.field}><label htmlFor="mh-phone">WhatsApp number</label><p>Include country code, with no spaces.</p><input id="mh-phone" name="phone" inputMode="tel" autoComplete="tel" placeholder="e.g. 919876543210" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required /></div>
             <div className={styles.field}><label htmlFor="mh-email">MH Connekt email</label><input id="mh-email" name="email" type="email" autoComplete="username" placeholder="Your MH Connekt email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required /></div>
             <div className={styles.field}><label htmlFor="mh-password">MH Connekt password</label><div className={styles.passwordControl}><input id="mh-password" name="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" placeholder="Your MH Connekt password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required /><button type="button" onClick={() => setShowPassword(!showPassword)}>{showPassword ? 'Hide' : 'Show'}</button></div></div>
-            <div className={styles.trialOffer}><strong>{approved ? 'Your free trial is active.' : 'Start your 7-day free trial.'}</strong><span>₹5 refundable mandate verification today. ₹100/month starts after your 7-day trial.</span></div>
+            <div className={styles.trialOffer}><strong>{offer.title}</strong><span>{offer.detail}</span></div>
             {error && <p className={styles.error} role="alert">{error}</p>}{billingError && <p className={styles.error} role="alert">{billingError}</p>}{paymentMessage && <p className={styles.paymentMessage} role="status">{paymentMessage}</p>}<button type="submit" className={styles.submitBtn} disabled={loading || paymentLoading}>{loading ? 'Connecting MH Connekt...' : paymentLoading ? 'Opening secure Razorpay...' : approved ? 'Connect MH Connekt' : 'Start 7-day free trial'}</button>
           </form>
         </>}
