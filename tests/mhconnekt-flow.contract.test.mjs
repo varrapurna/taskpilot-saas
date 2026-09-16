@@ -62,6 +62,17 @@ test('connected users can manage their MH Connekt connection', async () => {
   assert.match(dashboard, /'\/manage\/mhconnekt'/);
 });
 
+test('MH onboarding uses the same approved auto-pay trial gate as Taiga', async () => {
+  const form = await source('app/(product)/onboard/mhconnekt/MhConnektOnboardForm.js');
+
+  assert.match(form, /api\/billing\/status/);
+  assert.match(form, /api\/billing\/subscription/);
+  assert.match(form, /Start your 7-day free trial/);
+  assert.match(form, /₹100\/month starts after your 7-day trial/);
+  assert.match(form, /latestBilling\?\.autopayAccepted/);
+  assert.match(form, /await submitMh\(\)/);
+});
+
 test('an unavailable MH collection cannot break the main dashboard', async () => {
   const dashboard = await source('app/api/dashboard/route.js');
 
