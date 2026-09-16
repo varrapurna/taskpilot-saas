@@ -91,6 +91,8 @@ test('admin billing records Razorpay history without exposing private provider d
   assert.match(dashboard, /Sync Razorpay history/);
   assert.match(dashboard, /Payment history/);
   assert.match(dashboard, /payment\.userId === selectedHistoryUser/);
+  assert.match(dashboard, /historyBackdrop/);
+  assert.doesNotMatch(dashboard, /scrollIntoView/);
   assert.match(nginx, /location \^~ \/api\/admin\//);
 });
 

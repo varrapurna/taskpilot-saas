@@ -43,14 +43,15 @@ export default function AdminDashboard({ admin, overview }) {
     ['Payment issues', billing.metrics.failedPayments, 'Failed or past-due payment records'],
     ['Collected', formatMoney(billing.metrics.totalCollected), 'Recorded paid subscription invoices'],
   ];
+  const billingByUserId = new Map(billing.subscriptions.map((subscription) => [subscription.userId, subscription]));
   const selectedUser = overview.users.find((user) => user.id === selectedHistoryUser) || null;
+  const selectedSubscription = selectedUser ? billingByUserId.get(selectedUser.id) || null : null;
   const visibleHistory = selectedHistoryUser
     ? billing.history.filter((payment) => payment.userId === selectedHistoryUser)
     : billing.history;
 
   function viewPaymentHistory(userId) {
     setSelectedHistoryUser(userId);
-    window.requestAnimationFrame(() => document.getElementById('payment-history')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   }
 
   async function syncBillingHistory() {
@@ -108,23 +109,20 @@ export default function AdminDashboard({ admin, overview }) {
           </div>
         </section>
 
-        <section className={styles.panel}>
+        <section className={styles.accountsPanel}>
           <div className={styles.panelHeading}>
             <div><p className={styles.eyebrow}>Latest accounts</p><h2>Users</h2></div>
             <span>Showing latest {overview.users.length}</span>
           </div>
           <div className={styles.tableWrap}>
-            <table>
-              <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Verification</th><th>Last sign-in</th><th>Joined</th><th>Payments</th></tr></thead>
+            <table className={styles.accountTable}>
+              <thead><tr><th>User</th><th>Account</th><th>Billing</th><th>Payments</th></tr></thead>
               <tbody>
                 {overview.users.map((user) => (
                   <tr key={user.id}>
-                    <td>{user.name}</td>
-                    <td>{user.email}</td>
-                    <td><span className={user.role === 'admin' ? styles.roleAdmin : styles.roleUser}>{user.role === 'admin' ? 'Admin' : 'User'}</span></td>
-                    <td><span className={user.verified ? styles.verified : styles.unverified}>{user.verified ? 'Verified' : 'Pending'}</span></td>
-                    <td>{formatDate(user.lastLoginAt)}</td>
-                    <td>{formatDate(user.created)}</td>
+                    <td><strong>{user.name}</strong><small>{user.email}</small></td>
+                    <td><span className={user.role === 'admin' ? styles.roleAdmin : styles.roleUser}>{user.role === 'admin' ? 'Admin' : 'User'}</span><span className={user.verified ? styles.verified : styles.unverified}>{user.verified ? 'Verified' : 'Pending'}</span><small>Last sign-in: {formatDate(user.lastLoginAt)}</small></td>
+                    <td>{billingByUserId.get(user.id) ? <><span className={['active', 'trialing'].includes(billingByUserId.get(user.id).status) ? styles.verified : styles.unverified}>{labelForStatus(billingByUserId.get(user.id).status)}</span><small>{billingByUserId.get(user.id).autopayAccepted ? 'Auto-pay approved' : 'Auto-pay not approved'} · Until {formatBillingDate(billingByUserId.get(user.id).currentPeriodEndsAt || billingByUserId.get(user.id).trialEndsAt)}</small></> : <small>No subscription started</small>}</td>
                     <td><button type="button" className={styles.historyButton} onClick={() => viewPaymentHistory(user.id)}>Payment history</button></td>
                   </tr>
                 ))}
@@ -134,9 +132,9 @@ export default function AdminDashboard({ admin, overview }) {
           </div>
         </section>
 
-        <section className={styles.billingPanel} aria-labelledby="billing-title">
+        <section className={styles.billingOverview} aria-labelledby="billing-title">
           <div className={styles.panelHeading}>
-            <div><p className={styles.eyebrow}>Razorpay billing</p><h2 id="billing-title">Payments and auto-pay</h2><p>See who approved auto-pay, what was paid, and when a subscription ends.</p></div>
+            <div><p className={styles.eyebrow}>Billing</p><h2 id="billing-title">Payment overview</h2><p>Current auto-pay, payments, and subscriptions. Open a user’s history for the full detail.</p></div>
             <button type="button" className={styles.syncButton} onClick={syncBillingHistory} disabled={syncing}>{syncing ? 'Syncing Razorpay…' : 'Sync Razorpay history'}</button>
           </div>
           <div className={styles.billingMetrics} aria-label="Billing metrics">
@@ -145,36 +143,13 @@ export default function AdminDashboard({ admin, overview }) {
           {syncError && <p className={styles.syncError} role="alert">{syncError}</p>}
         </section>
 
-        <section className={styles.panel} aria-labelledby="subscriptions-title">
-          <div className={styles.panelHeading}><div><p className={styles.eyebrow}>Customer subscriptions</p><h2 id="subscriptions-title">Auto-pay status</h2></div><span>{billing.subscriptions.length} total</span></div>
-          <div className={styles.tableWrap}>
-            <table className={styles.billingTable}>
-              <thead><tr><th>User</th><th>Auto-pay</th><th>Status</th><th>Last payment</th><th>Paid until</th><th>Cancelled</th></tr></thead>
-              <tbody>{billing.subscriptions.map((subscription) => <tr key={subscription.id}>
-                <td><strong>{subscription.userName}</strong><small>{subscription.userEmail}</small></td>
-                <td><span className={subscription.autopayAccepted ? styles.verified : styles.unverified}>{subscription.autopayAccepted ? 'Approved' : 'Not approved'}</span></td>
-                <td><span className={subscription.status === 'active' || subscription.status === 'trialing' ? styles.verified : styles.unverified}>{labelForStatus(subscription.status)}</span></td>
-                <td>{subscription.lastPayment ? <><strong>{formatMoney(subscription.lastPayment.amount, subscription.lastPayment.currency)}</strong><small>{formatBillingDate(subscription.lastPayment.occurredAt)}</small></> : '—'}</td>
-                <td>{formatBillingDate(subscription.currentPeriodEndsAt || subscription.trialEndsAt)}</td>
-                <td>{subscription.cancelAtPeriodEnd ? `Ends ${formatBillingDate(subscription.currentPeriodEndsAt)}` : formatBillingDate(subscription.cancelledAt)}</td>
-              </tr>)}</tbody>
-            </table>
-            {!billing.hasSubscriptions && <p className={styles.empty}>No one has started a TaskPilot payment yet.</p>}
-          </div>
-        </section>
-
-        <section className={styles.panel} id="payment-history" aria-labelledby="payment-history-title">
-          <div className={styles.panelHeading}><div><p className={styles.eyebrow}>Payment history</p><h2 id="payment-history-title">{selectedUser ? `${selectedUser.name}'s Razorpay activity` : 'Razorpay activity'}</h2></div><div className={styles.historyActions}>{selectedUser ? <button type="button" className={styles.historyButton} onClick={() => setSelectedHistoryUser(null)}>Show all payments</button> : null}<span>{selectedUser ? `${visibleHistory.length} records` : `All ${visibleHistory.length}`}</span></div></div>
-          <div className={styles.tableWrap}>
-            <table className={styles.billingTable}>
-              <thead><tr><th>Date</th><th>User</th><th>Activity</th><th>Status</th><th>Amount</th><th>Detail</th></tr></thead>
-              <tbody>{visibleHistory.map((payment) => <tr key={payment.id}>
-                <td>{formatBillingDate(payment.occurredAt)}</td><td><strong>{payment.userName}</strong><small>{payment.userEmail}</small></td><td>{labelForStatus(payment.eventType)}</td><td>{labelForStatus(payment.status)}</td><td>{payment.amount ? formatMoney(payment.amount, payment.currency) : '—'}</td><td>{payment.failureReason || '—'}</td>
-              </tr>)}</tbody>
-            </table>
-            {!visibleHistory.length && <p className={styles.empty}>{selectedUser ? 'This user has no recorded Razorpay payment yet.' : 'Use “Sync Razorpay history” to load previous invoices, then future activity will appear automatically.'}</p>}
-          </div>
-        </section>
+        {selectedUser && <div className={styles.historyBackdrop} role="presentation" onMouseDown={() => setSelectedHistoryUser(null)}>
+          <section className={styles.historyDialog} role="dialog" aria-modal="true" aria-labelledby="payment-history-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className={styles.historyDialogHead}><div><p className={styles.eyebrow}>Payment history</p><h2 id="payment-history-title">{selectedUser.name}</h2><p>{selectedUser.email}</p></div><button type="button" className={styles.closeButton} onClick={() => setSelectedHistoryUser(null)} aria-label="Close payment history">Close</button></div>
+            <dl className={styles.historySummary}><div><dt>Auto-pay</dt><dd>{selectedSubscription?.autopayAccepted ? 'Approved' : 'Not approved'}</dd></div><div><dt>Status</dt><dd>{labelForStatus(selectedSubscription?.status)}</dd></div><div><dt>Paid until</dt><dd>{formatBillingDate(selectedSubscription?.currentPeriodEndsAt || selectedSubscription?.trialEndsAt)}</dd></div><div><dt>Records</dt><dd>{visibleHistory.length}</dd></div></dl>
+            <div className={styles.historyList}>{visibleHistory.length ? visibleHistory.map((payment) => <article key={payment.id}><div><strong>{labelForStatus(payment.eventType)}</strong><small>{formatBillingDate(payment.occurredAt)} · {labelForStatus(payment.status)}</small></div><div><strong>{payment.amount ? formatMoney(payment.amount, payment.currency) : '—'}</strong><small>{payment.failureReason || 'No issue recorded'}</small></div></article>) : <p className={styles.empty}>This user has no recorded Razorpay payment yet.</p>}</div>
+          </section>
+        </div>}
       </section>
     </main>
   );
