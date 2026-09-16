@@ -4,9 +4,6 @@ import { createPublicClient, normalizeEmail, recordSuccessfulLogin, setAuthCooki
 export function OPTIONS(request) { return authOptions(request); }
 
 export async function POST(request) {
-  const rateLimited = authRateLimit(request, 'auth-login', { limit: 10, windowMs: 15 * 60 * 1000 });
-  if (rateLimited) return rateLimited;
-
   let email;
   let auth;
 
@@ -17,6 +14,11 @@ export async function POST(request) {
     if (!email || typeof password !== 'string') {
       return authJson(request, { error: 'Enter your email and password.' }, 400);
     }
+
+    const networkLimited = authRateLimit(request, 'auth-login-network', { limit: 50, windowMs: 15 * 60 * 1000 });
+    if (networkLimited) return networkLimited;
+    const emailLimited = authRateLimit(request, 'auth-login-email', { limit: 10, windowMs: 15 * 60 * 1000, key: email });
+    if (emailLimited) return emailLimited;
 
     const pb = createPublicClient();
     auth = await pb.collection('users').authWithPassword(email, password);
