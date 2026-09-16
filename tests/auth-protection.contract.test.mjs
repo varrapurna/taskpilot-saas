@@ -76,6 +76,7 @@ test('admin billing records Razorpay history without exposing private provider d
   const overview = await source('src/server/admin/overview.js');
   const syncRoute = await source('app/api/admin/billing/sync/route.js');
   const dashboard = await source('app/(product)/_components/AdminDashboard.js');
+  const nginx = await source('scripts/configure-nginx.sh');
 
   assert.match(migration, /billing_webhook_events/);
   assert.match(migration, /payment_id/);
@@ -88,6 +89,9 @@ test('admin billing records Razorpay history without exposing private provider d
   assert.doesNotMatch(overview, /billing_subscriptions'\)\.getFullList\(\{ sort:/);
   assert.doesNotMatch(overview, /billing_webhook_events'\)\.getFullList\(\{ sort:/);
   assert.match(dashboard, /Sync Razorpay history/);
+  assert.match(dashboard, /Payment history/);
+  assert.match(dashboard, /payment\.userId === selectedHistoryUser/);
+  assert.match(nginx, /location \^~ \/api\/admin\//);
 });
 
 test('disconnect keeps a paid period but stops only the next renewal for the final workspace', async () => {
