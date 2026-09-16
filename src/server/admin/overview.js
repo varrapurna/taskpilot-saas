@@ -57,6 +57,7 @@ function toSubscriptionSummary(record, usersById, eventsBySubscription) {
   const latestPayment = events.find(paidPayment) || null;
   return {
     id: record.id,
+    userId: record.user,
     userName: user?.name || 'Unknown user',
     userEmail: user?.email || 'Unavailable',
     status: record.status || 'not_started',
