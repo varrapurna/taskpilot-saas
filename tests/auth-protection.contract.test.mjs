@@ -36,8 +36,7 @@ test('password reset emails have a unique branded production repair migration', 
   assert.match(forgotPassword, /Password reset email request failed/);
 });
 
-test('Phase 1 blocks normal-user integrations while preserving admin testing access', async () => {
-  const feature = await source('src/server/features/integrations.js');
+test('all signed-in users can use integrations without a launch-only feature lock', async () => {
   const taiga = await source('app/api/integrations/taiga/route.js');
   const mh = await source('app/api/integrations/mhconnekt/route.js');
   const register = await source('app/api/register/route.js');
@@ -48,20 +47,14 @@ test('Phase 1 blocks normal-user integrations while preserving admin testing acc
   const taigaForm = await source('app/(product)/onboard/taiga/_components/TaigaOnboardForm.js');
   const mhForm = await source('app/(product)/onboard/mhconnekt/MhConnektOnboardForm.js');
 
-  assert.match(feature, /TASKPILOT_INTEGRATIONS_ENABLED/);
-  assert.match(feature, /user\?\.role === 'admin'/);
-  assert.match(feature, /INTEGRATIONS_LOCKED/);
   for (const route of [taiga, mh, register, billing]) {
-    assert.match(route, /canUseIntegrations/);
-    assert.match(route, /integrationsLockedResponse/);
+    assert.doesNotMatch(route, /canUseIntegrations|integrationsLockedResponse/);
   }
-  assert.match(webhook, /canUserIdUseIntegrations/);
-  assert.match(webhook, /Phase 1 launch/);
+  assert.doesNotMatch(webhook, /canUserIdUseIntegrations|Phase 1 launch/);
   assert.match(dashboard, /Integrations/);
   assert.match(onboarding, /Choose the tools you use/);
   for (const form of [taigaForm, mhForm]) {
-    assert.match(form, /api\/auth\/me/);
-    assert.match(form, /Connection setup is temporarily locked/);
+    assert.doesNotMatch(form, /Connection setup is temporarily locked|Phase 1 testing|integrationsAvailable/);
   }
 });
 

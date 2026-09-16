@@ -5,7 +5,6 @@ import { getCorsHeaders } from '@/server/http/cors';
 import { authRateLimit, requireTrustedOrigin } from '@/server/http/auth-response';
 import { getAuthenticatedClient } from '@/server/auth/account';
 import { getBillingSubscription } from '@/server/billing/subscriptions';
-import { canUseIntegrations, integrationsLockedResponse } from '@/server/features/integrations';
 
 const TAIGA_API_BASE_URL = 'https://api.taiga.io/api/v1';
 
@@ -112,8 +111,6 @@ export async function POST(request) {
     if (!client) {
       return Response.json({ error: 'Please sign in before connecting Taiga.' }, { status: 401, ...responseOptions });
     }
-    if (!canUseIntegrations(client.record)) return integrationsLockedResponse(request);
-
     const billing = await getBillingSubscription(client.record.id, client.admin);
     if (!billing?.razorpay_autopay_accepted) {
       return Response.json({ error: 'Set up and approve your ₹100/month auto-pay before connecting Taiga.' }, { status: 402, ...responseOptions });
