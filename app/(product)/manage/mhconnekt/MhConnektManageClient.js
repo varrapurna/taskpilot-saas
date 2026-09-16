@@ -10,6 +10,11 @@ const isLocalBrowser = typeof window !== 'undefined' && ['localhost', '127.0.0.1
 const API_BASE_URL = isLocalBrowser ? '' : (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '');
 
 function billingMessage(billing) {
+  if (billing?.cancelAtPeriodEnd) {
+    const paidUntil = new Date(billing.currentPeriodEndsAt);
+    const date = Number.isNaN(paidUntil.getTime()) ? 'the end of the current paid period' : new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium' }).format(paidUntil);
+    return `Future auto-pay is stopped. Your paid access remains available until ${date}.`;
+  }
   if (billing?.status === 'active') return 'Your ₹100/month plan is active.';
   if (billing?.status === 'trialing') {
     const trialEndsAt = new Date(billing.trialEndsAt);
@@ -89,7 +94,7 @@ export default function MhConnektManageClient() {
 
         <section className={styles.billing} aria-label="Subscription details">
           <div className={styles.sectionHead}><p className={styles.eyebrow}>Billing</p><h2>{data.billing?.status === 'trialing' ? 'Your free trial is active.' : 'Your subscription'}</h2></div>
-          <div><p>{billingMessage(data.billing)}</p><small>Your TaskPilot plan stays unchanged if you disconnect only MH Connekt.</small></div>
+          <div><p>{billingMessage(data.billing)}</p><small>Your TaskPilot plan stays active when another workspace is connected. If this is your last workspace, future auto-pay stops and any paid period remains available until its end date.</small></div>
         </section>
 
         <section className={styles.guide} aria-label="WhatsApp guide">
@@ -106,8 +111,8 @@ export default function MhConnektManageClient() {
         </section>
 
         <section className={styles.danger} aria-label="Disconnect MH Connekt">
-          <div><p className={styles.eyebrow}>Disconnect</p><h2>Stop using MH Connekt with TaskPilot.</h2><p>Disconnecting removes your encrypted MH access tokens. It does not change your MH Connekt account, Taiga connection, or TaskPilot subscription.</p></div>
-          {!confirming ? <button type="button" className={styles.disconnectButton} onClick={() => setConfirming(true)}>Disconnect MH Connekt</button> : <div className={styles.confirmation}><p>Remove this MH Connekt connection?</p><div><button type="button" className={styles.cancelButton} onClick={() => setConfirming(false)} disabled={disconnecting}>Keep connection</button><button type="button" className={styles.disconnectButton} onClick={disconnect} disabled={disconnecting}>{disconnecting ? 'Disconnecting…' : 'Disconnect MH Connekt'}</button></div></div>}
+          <div><p className={styles.eyebrow}>Disconnect</p><h2>Stop using MH Connekt with TaskPilot.</h2><p>Disconnecting removes your encrypted MH access tokens immediately. It does not change your MH Connekt account. If this is your last workspace, future auto-pay stops while any paid period stays available until its end date.</p></div>
+          {!confirming ? <button type="button" className={styles.disconnectButton} onClick={() => setConfirming(true)}>Disconnect MH Connekt</button> : <div className={styles.confirmation}><p>Disconnect this workspace and stop future renewal if it is your last one?</p><div><button type="button" className={styles.cancelButton} onClick={() => setConfirming(false)} disabled={disconnecting}>Keep connection</button><button type="button" className={styles.disconnectButton} onClick={disconnect} disabled={disconnecting}>{disconnecting ? 'Disconnecting…' : 'Disconnect workspace'}</button></div></div>}
           {error && <p className={styles.error} role="alert">{error}</p>}
         </section>
       </section>

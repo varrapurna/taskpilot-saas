@@ -37,6 +37,7 @@ function toBillingSummary(record) {
     trialEndsAt: record.trial_ends_at || null,
     currentPeriodEndsAt: record.current_period_ends_at || null,
     cancelAtPeriodEnd: Boolean(record.cancel_at_period_end),
+    cancelledAt: record.cancelled_at || null,
     subscriptionReady: Boolean(record.razorpay_subscription_id),
     autopayAccepted: Boolean(record.razorpay_autopay_accepted),
   };
@@ -227,7 +228,8 @@ export async function createRazorpaySubscriptionForUser(user) {
     && billingStatusFor(subscription) === 'trialing'
     ? dateFromRecord(subscription.trial_ends_at)
     : null;
-  const plannedTrialEndsAt = activeTrialEndsAt || new Date(Date.now() + TRIAL_DAYS * 86_400_000);
+  const hasUsedTrial = Boolean(subscription.trial_started_at);
+  const plannedTrialEndsAt = activeTrialEndsAt || (hasUsedTrial ? new Date() : new Date(Date.now() + TRIAL_DAYS * 86_400_000));
   const startAt = Math.floor(plannedTrialEndsAt.getTime() / 1000);
   const payload = {
     plan_id: config.planId,
@@ -255,6 +257,8 @@ export async function createRazorpaySubscriptionForUser(user) {
       : 'pending_authorisation',
     razorpay_subscription_id: razorpaySubscription.id,
     razorpay_plan_id: config.planId,
+    cancel_at_period_end: false,
+    cancelled_at: '',
   });
 
   return {
@@ -271,17 +275,56 @@ export async function cancelRazorpaySubscriptionForUser(userId, existingAdminCli
 
   if (subscription.razorpay_subscription_id) {
     const config = getRazorpayConfig();
-    await razorpayRequest(
-      `/subscriptions/${subscription.razorpay_subscription_id}/cancel`,
-      { cancel_at_cycle_end: false },
-      config
-    );
+    const providerSubscription = await getRazorpaySubscription(subscription.razorpay_subscription_id, config);
+    const currentPeriodEndsAt = dateFromRecord(isoFromUnix(providerSubscription.current_end));
+    const keepPaidAccess = providerSubscription.status === 'active'
+      && currentPeriodEndsAt
+      && currentPeriodEndsAt > new Date();
+
+    // A webhook can arrive late. If Razorpay has already ended this
+    // subscription, do not ask Razorpay to cancel it a second time.
+    if (['cancelled', 'completed', 'expired'].includes(providerSubscription.status)) {
+      return pb.collection('billing_subscriptions').update(subscription.id, {
+        status: providerSubscription.status === 'cancelled' ? 'cancelled' : 'expired',
+        cancel_at_period_end: false,
+        razorpay_autopay_accepted: false,
+        cancelled_at: isoFromUnix(providerSubscription.ended_at) || new Date().toISOString(),
+      });
+    }
+
+    // Razorpay does not allow an end-of-cycle cancellation during the last
+    // cycle because there is no future renewal. The customer's paid access
+    // still ends on the current period end, so no provider action is needed.
+    const hasFutureRenewal = !Number.isInteger(providerSubscription.remaining_count)
+      || providerSubscription.remaining_count > 0;
+    if (keepPaidAccess && !hasFutureRenewal) {
+      return pb.collection('billing_subscriptions').update(subscription.id, {
+        status: 'active',
+        cancel_at_period_end: true,
+        current_period_ends_at: currentPeriodEndsAt.toISOString(),
+        razorpay_autopay_accepted: true,
+      });
+    }
+
+    await razorpayRequest(`/subscriptions/${subscription.razorpay_subscription_id}/cancel`, {
+      cancel_at_cycle_end: Boolean(keepPaidAccess),
+    }, config);
+
+    if (keepPaidAccess) {
+      return pb.collection('billing_subscriptions').update(subscription.id, {
+        status: 'active',
+        cancel_at_period_end: true,
+        current_period_ends_at: currentPeriodEndsAt.toISOString(),
+        razorpay_autopay_accepted: true,
+      });
+    }
   }
 
   return pb.collection('billing_subscriptions').update(subscription.id, {
     status: 'cancelled',
     cancel_at_period_end: false,
     razorpay_autopay_accepted: false,
+    cancelled_at: new Date().toISOString(),
   });
 }
 
@@ -302,12 +345,12 @@ export async function getBillingSummaryForUser(userId, existingAdminClient) {
         const pb = existingAdminClient || await createAdminClient();
         const isInTrial = razorpaySubscription.status === 'authenticated';
         const update = {
-          status: isInTrial ? 'trialing' : 'active',
+          status: isInTrial && !subscription.trial_started_at ? 'trialing' : 'active',
           razorpay_autopay_accepted: true,
           razorpay_customer_id: razorpaySubscription.customer_id || '',
           razorpay_plan_id: razorpaySubscription.plan_id || '',
         };
-        if (isInTrial) Object.assign(update, newTrialWindow());
+        if (isInTrial && !subscription.trial_started_at) Object.assign(update, newTrialWindow());
         subscription = await pb.collection('billing_subscriptions').update(subscription.id, update);
       }
     } catch (error) {
@@ -320,4 +363,122 @@ export async function getBillingSummaryForUser(userId, existingAdminClient) {
   }
 
   return toBillingSummary(subscription);
+}
+
+function razorpayStatusToTaskPilotStatus(status) {
+  if (status === 'authenticated') return 'trialing';
+  if (status === 'active') return 'active';
+  if (status === 'pending' || status === 'halted') return 'past_due';
+  if (status === 'cancelled') return 'cancelled';
+  if (status === 'completed' || status === 'expired') return 'expired';
+  return 'pending_authorisation';
+}
+
+async function razorpayGet(path, config) {
+  const authorization = Buffer.from(`${config.keyId}:${config.keySecret}`).toString('base64');
+  const response = await fetch(`https://api.razorpay.com/v1${path}`, {
+    headers: { Authorization: `Basic ${authorization}` },
+    cache: 'no-store',
+  });
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    const error = new Error('Razorpay history could not be retrieved.');
+    error.providerStatus = response.status;
+    error.providerDescription = body?.error?.description;
+    throw error;
+  }
+  return body;
+}
+
+function isoFromUnix(value) {
+  return Number.isInteger(value) && value > 0 ? new Date(value * 1000).toISOString() : '';
+}
+
+function safeText(value, maxLength) {
+  return typeof value === 'string' ? value.slice(0, maxLength) : '';
+}
+
+function billingPatchFromRazorpaySubscription(subscription) {
+  const status = razorpayStatusToTaskPilotStatus(subscription.status);
+  const patch = {
+    status,
+    razorpay_customer_id: safeText(subscription.customer_id, 100),
+    razorpay_plan_id: safeText(subscription.plan_id, 100),
+    razorpay_autopay_accepted: ['authenticated', 'active'].includes(subscription.status),
+  };
+  const currentPeriodEndsAt = isoFromUnix(subscription.current_end);
+  if (currentPeriodEndsAt) patch.current_period_ends_at = currentPeriodEndsAt;
+  if (status === 'cancelled') {
+    patch.cancel_at_period_end = false;
+    patch.cancelled_at = isoFromUnix(subscription.ended_at) || new Date().toISOString();
+  }
+  return patch;
+}
+
+async function upsertHistoricInvoice(pb, subscription, invoice) {
+  const invoiceId = safeText(invoice?.id, 100);
+  if (!invoiceId) return false;
+
+  const eventId = `historic_invoice_${invoiceId}`;
+  const occurredAt = isoFromUnix(invoice.paid_at)
+    || isoFromUnix(invoice.created_at)
+    || new Date().toISOString();
+  const amount = invoice.amount_paid ?? invoice.amount ?? 0;
+  const record = {
+    event_id: eventId,
+    event_type: `invoice.${safeText(invoice.status, 50) || 'unknown'}`,
+    subscription: subscription.id,
+    processed_at: new Date().toISOString(),
+    event_source: 'razorpay_history_sync',
+    payment_id: safeText(invoice.payment_id, 100),
+    invoice_id: invoiceId,
+    amount: Number.isFinite(Number(amount)) ? Number(amount) : 0,
+    currency: safeText(invoice.currency, 10),
+    payment_status: safeText(invoice.status, 50),
+    occurred_at: occurredAt,
+    failure_reason: '',
+  };
+
+  try {
+    const existing = await pb.collection('billing_webhook_events').getFirstListItem(`event_id = "${eventId}"`);
+    await pb.collection('billing_webhook_events').update(existing.id, record);
+  } catch (error) {
+    if (!isRecordNotFound(error)) throw error;
+    await pb.collection('billing_webhook_events').create(record);
+  }
+  return true;
+}
+
+// Admin-only history import. It reads invoices only for Razorpay subscription
+// IDs already owned by TaskPilot users, then stores a small normalized audit
+// record instead of a complete provider payload.
+export async function syncRazorpayBillingHistory() {
+  const config = getRazorpayConfig();
+  const pb = await createAdminClient();
+  const subscriptions = await pb.collection('billing_subscriptions').getFullList({ sort: '-created' });
+  let syncedSubscriptions = 0;
+  let syncedInvoices = 0;
+
+  for (const localSubscription of subscriptions) {
+    const subscriptionId = localSubscription.razorpay_subscription_id;
+    if (!/^sub_[A-Za-z0-9]+$/.test(subscriptionId || '')) continue;
+
+    const providerSubscription = await razorpayGet(`/subscriptions/${subscriptionId}`, config);
+    await pb.collection('billing_subscriptions').update(
+      localSubscription.id,
+      billingPatchFromRazorpaySubscription(providerSubscription)
+    );
+    syncedSubscriptions += 1;
+
+    for (let skip = 0; ; skip += 100) {
+      const page = await razorpayGet(`/invoices?subscription_id=${encodeURIComponent(subscriptionId)}&count=100&skip=${skip}`, config);
+      const invoices = Array.isArray(page?.items) ? page.items : [];
+      for (const invoice of invoices) {
+        if (await upsertHistoricInvoice(pb, localSubscription, invoice)) syncedInvoices += 1;
+      }
+      if (invoices.length < 100) break;
+    }
+  }
+
+  return { syncedSubscriptions, syncedInvoices };
 }

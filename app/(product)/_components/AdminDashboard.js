@@ -1,19 +1,61 @@
+'use client';
+
 import Link from 'next/link';
+import { useState } from 'react';
 import SignOutButton from './SignOutButton';
 import styles from '../admin/admin.module.css';
+
+const isLocalBrowser = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const API_BASE_URL = isLocalBrowser ? '' : (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '');
 
 function formatDate(value) {
   if (!value) return 'Not signed in yet';
   return new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium' }).format(new Date(value));
 }
 
+function formatBillingDate(value) {
+  if (!value) return '—';
+  return new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium' }).format(new Date(value));
+}
+
+function formatMoney(amount, currency = 'INR') {
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency, maximumFractionDigits: 2 }).format(Number(amount || 0) / 100);
+}
+
+function labelForStatus(value) {
+  return String(value || 'not_started').replaceAll('_', ' ');
+}
+
 export default function AdminDashboard({ admin, overview }) {
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState('');
   const cards = [
     ['Total users', overview.metrics.totalUsers, 'All registered accounts'],
     ['Verified users', overview.metrics.verifiedUsers, 'Email verification completed'],
     ['New this week', overview.metrics.newUsersThisWeek, 'Accounts created in the last 7 days'],
     ['Active users', overview.metrics.activeUsersLast30Days, 'Signed in during the last 30 days'],
   ];
+  const billing = overview.billing;
+  const billingCards = [
+    ['Auto-pay active', billing.metrics.activeAutopay, 'Trial or paid subscriptions'],
+    ['Cancelling', billing.metrics.cancellingAtCycleEnd, 'Stops after the paid period'],
+    ['Payment issues', billing.metrics.failedPayments, 'Failed or past-due payment records'],
+    ['Collected', formatMoney(billing.metrics.totalCollected), 'Recorded paid subscription invoices'],
+  ];
+
+  async function syncBillingHistory() {
+    setSyncing(true);
+    setSyncError('');
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/billing/sync`, { method: 'POST', credentials: 'include' });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || 'Razorpay history could not be synced.');
+      window.location.reload();
+    } catch (error) {
+      setSyncError(error.message || 'Razorpay history could not be synced.');
+      setSyncing(false);
+    }
+  }
 
   return (
     <main className={styles.main}>
@@ -81,9 +123,46 @@ export default function AdminDashboard({ admin, overview }) {
           </div>
         </section>
 
-        <section className={styles.nextPanel}>
-          <div><p className={styles.eyebrow}>Coming next</p><h2>Billing</h2><p>Trial, paid, failed-payment, and income metrics will appear here when Razorpay is connected.</p></div>
-          <span>Not enabled yet</span>
+        <section className={styles.billingPanel} aria-labelledby="billing-title">
+          <div className={styles.panelHeading}>
+            <div><p className={styles.eyebrow}>Razorpay billing</p><h2 id="billing-title">Payments and auto-pay</h2><p>See who approved auto-pay, what was paid, and when a subscription ends.</p></div>
+            <button type="button" className={styles.syncButton} onClick={syncBillingHistory} disabled={syncing}>{syncing ? 'Syncing Razorpay…' : 'Sync Razorpay history'}</button>
+          </div>
+          <div className={styles.billingMetrics} aria-label="Billing metrics">
+            {billingCards.map(([label, value, detail]) => <article className={styles.billingMetric} key={label}><span>{label}</span><strong>{value}</strong><small>{detail}</small></article>)}
+          </div>
+          {syncError && <p className={styles.syncError} role="alert">{syncError}</p>}
+        </section>
+
+        <section className={styles.panel} aria-labelledby="subscriptions-title">
+          <div className={styles.panelHeading}><div><p className={styles.eyebrow}>Customer subscriptions</p><h2 id="subscriptions-title">Auto-pay status</h2></div><span>{billing.subscriptions.length} total</span></div>
+          <div className={styles.tableWrap}>
+            <table className={styles.billingTable}>
+              <thead><tr><th>User</th><th>Auto-pay</th><th>Status</th><th>Last payment</th><th>Paid until</th><th>Cancelled</th></tr></thead>
+              <tbody>{billing.subscriptions.map((subscription) => <tr key={subscription.id}>
+                <td><strong>{subscription.userName}</strong><small>{subscription.userEmail}</small></td>
+                <td><span className={subscription.autopayAccepted ? styles.verified : styles.unverified}>{subscription.autopayAccepted ? 'Approved' : 'Not approved'}</span></td>
+                <td><span className={subscription.status === 'active' || subscription.status === 'trialing' ? styles.verified : styles.unverified}>{labelForStatus(subscription.status)}</span></td>
+                <td>{subscription.lastPayment ? <><strong>{formatMoney(subscription.lastPayment.amount, subscription.lastPayment.currency)}</strong><small>{formatBillingDate(subscription.lastPayment.occurredAt)}</small></> : '—'}</td>
+                <td>{formatBillingDate(subscription.currentPeriodEndsAt || subscription.trialEndsAt)}</td>
+                <td>{subscription.cancelAtPeriodEnd ? `Ends ${formatBillingDate(subscription.currentPeriodEndsAt)}` : formatBillingDate(subscription.cancelledAt)}</td>
+              </tr>)}</tbody>
+            </table>
+            {!billing.hasSubscriptions && <p className={styles.empty}>No one has started a TaskPilot payment yet.</p>}
+          </div>
+        </section>
+
+        <section className={styles.panel} aria-labelledby="payment-history-title">
+          <div className={styles.panelHeading}><div><p className={styles.eyebrow}>Payment history</p><h2 id="payment-history-title">Razorpay activity</h2></div><span>Latest {billing.history.length}</span></div>
+          <div className={styles.tableWrap}>
+            <table className={styles.billingTable}>
+              <thead><tr><th>Date</th><th>User</th><th>Activity</th><th>Status</th><th>Amount</th><th>Detail</th></tr></thead>
+              <tbody>{billing.history.map((payment) => <tr key={payment.id}>
+                <td>{formatBillingDate(payment.occurredAt)}</td><td><strong>{payment.userName}</strong><small>{payment.userEmail}</small></td><td>{labelForStatus(payment.eventType)}</td><td>{labelForStatus(payment.status)}</td><td>{payment.amount ? formatMoney(payment.amount, payment.currency) : '—'}</td><td>{payment.failureReason || '—'}</td>
+              </tr>)}</tbody>
+            </table>
+            {!billing.history.length && <p className={styles.empty}>Use “Sync Razorpay history” to load previous invoices, then future activity will appear automatically.</p>}
+          </div>
         </section>
       </section>
     </main>

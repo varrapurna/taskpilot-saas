@@ -16,6 +16,33 @@ function dateFromUnixTimestamp(value) {
   return new Date(value * 1000).toISOString();
 }
 
+function text(value, maxLength) {
+  return typeof value === 'string' ? value.slice(0, maxLength) : '';
+}
+
+function eventDetails(eventType, payload) {
+  const payment = payload?.payment?.entity;
+  const invoice = payload?.invoice?.entity;
+  const occurredAt = dateFromUnixTimestamp(payment?.captured_at)
+    || dateFromUnixTimestamp(payment?.created_at)
+    || dateFromUnixTimestamp(invoice?.paid_at)
+    || dateFromUnixTimestamp(invoice?.created_at)
+    || new Date().toISOString();
+  const amount = payment?.amount ?? invoice?.amount_paid ?? invoice?.amount;
+
+  return {
+    event_type: eventType || 'unknown',
+    event_source: 'webhook',
+    payment_id: text(payment?.id, 100),
+    invoice_id: text(invoice?.id, 100),
+    amount: Number.isFinite(Number(amount)) ? Number(amount) : 0,
+    currency: text(payment?.currency || invoice?.currency, 10),
+    payment_status: text(payment?.status || invoice?.status || eventType, 50),
+    occurred_at: occurredAt,
+    failure_reason: text(payment?.error_description || payment?.error_reason || invoice?.description, 500),
+  };
+}
+
 function hasActiveTrial(billingSubscription) {
   if (billingSubscription?.status !== 'trialing' || !billingSubscription.trial_ends_at) return false;
   const trialEnd = new Date(billingSubscription.trial_ends_at);
@@ -43,9 +70,9 @@ function getSubscriptionUpdate(eventType, subscription, payment, billingSubscrip
 
   if (eventType === 'subscription.authenticated') {
     // The free trial begins only when Razorpay confirms auto-pay approval.
-    update.status = 'trialing';
+    update.status = billingSubscription?.trial_started_at ? 'active' : 'trialing';
     update.razorpay_autopay_accepted = true;
-    if (!billingSubscription?.razorpay_autopay_accepted || !hasActiveTrial(billingSubscription)) {
+    if (!billingSubscription?.trial_started_at && (!billingSubscription?.razorpay_autopay_accepted || !hasActiveTrial(billingSubscription))) {
       Object.assign(update, newTrialWindow());
     }
   } else if (eventType === 'subscription.activated' || eventType === 'subscription.charged') {
@@ -55,7 +82,9 @@ function getSubscriptionUpdate(eventType, subscription, payment, billingSubscrip
     update.status = 'past_due';
   } else if (eventType === 'subscription.cancelled') {
     update.status = 'cancelled';
+    update.cancel_at_period_end = false;
     update.razorpay_autopay_accepted = false;
+    update.cancelled_at = dateFromUnixTimestamp(subscription.ended_at) || new Date().toISOString();
   } else if (eventType === 'subscription.completed') {
     update.status = 'expired';
     update.razorpay_autopay_accepted = false;
@@ -88,8 +117,8 @@ export async function processRazorpayWebhook({ eventId, eventType, payload }) {
   if (!subscription?.id || !/^sub_[A-Za-z0-9]+$/.test(subscription.id)) {
     await pb.collection('billing_webhook_events').create({
       event_id: eventId,
-      event_type: eventType || 'unknown',
       processed_at: new Date().toISOString(),
+      ...eventDetails(eventType, payload),
     });
     return { ignored: true };
   }
@@ -107,8 +136,8 @@ export async function processRazorpayWebhook({ eventId, eventType, payload }) {
 
   const eventRecord = {
     event_id: eventId,
-    event_type: eventType || 'unknown',
     processed_at: new Date().toISOString(),
+    ...eventDetails(eventType, payload),
   };
   if (billingSubscription) eventRecord.subscription = billingSubscription.id;
   await pb.collection('billing_webhook_events').create(eventRecord);

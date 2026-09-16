@@ -10,6 +10,11 @@ const isLocalBrowser = typeof window !== 'undefined' && ['localhost', '127.0.0.1
 const API_BASE_URL = isLocalBrowser ? '' : (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '');
 
 function trialMessage(billing) {
+  if (billing?.cancelAtPeriodEnd) {
+    const paidUntil = new Date(billing.currentPeriodEndsAt);
+    const date = Number.isNaN(paidUntil.getTime()) ? 'the end of the current paid period' : new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium' }).format(paidUntil);
+    return `Future auto-pay is stopped. Your paid access remains available until ${date}.`;
+  }
   if (billing?.status === 'active') return 'Your ₹100/month plan is active.';
   if (billing?.status === 'trialing') {
     const trialEndsAt = new Date(billing.trialEndsAt);
@@ -105,7 +110,7 @@ export default function TaigaManageClient() {
 
         <section className={styles.billing} aria-label="Subscription details">
           <div className={styles.sectionHead}><p className={styles.eyebrow}>Billing</p><h2>{data.billing?.status === 'trialing' ? 'Your free trial is active.' : 'Your subscription'}</h2></div>
-          <div><p>{trialMessage(data.billing)}</p><small>Auto-pay is charged only by Razorpay. It is cancelled if you disconnect Taiga below.</small></div>
+          <div><p>{trialMessage(data.billing)}</p><small>If this is your last workspace, future auto-pay stops when you disconnect. Any paid period stays available until its end date.</small></div>
         </section>
 
         <section className={styles.guide} aria-label="WhatsApp guide">
@@ -122,8 +127,8 @@ export default function TaigaManageClient() {
         </section>
 
         <section className={styles.danger} aria-label="Disconnect Taiga">
-          <div><p className={styles.eyebrow}>Disconnect</p><h2>Stop using Taiga with TaskPilot.</h2><p>Disconnecting removes your encrypted Taiga credentials and immediately cancels your Razorpay auto-pay. You will no longer receive Taiga work in WhatsApp.</p></div>
-          {!confirming ? <button type="button" className={styles.disconnectButton} onClick={() => setConfirming(true)}>Disconnect Taiga</button> : <div className={styles.confirmation}><p>Cancel auto-pay and disconnect this workspace?</p><div><button type="button" className={styles.cancelButton} onClick={() => setConfirming(false)} disabled={disconnecting}>Keep connection</button><button type="button" className={styles.disconnectButton} onClick={disconnect} disabled={disconnecting}>{disconnecting ? 'Disconnecting…' : 'Cancel auto-pay & disconnect'}</button></div></div>}
+          <div><p className={styles.eyebrow}>Disconnect</p><h2>Stop using Taiga with TaskPilot.</h2><p>Disconnecting removes your encrypted Taiga credentials immediately. If this is your last workspace, future auto-pay stops while any paid period stays available until its end date.</p></div>
+          {!confirming ? <button type="button" className={styles.disconnectButton} onClick={() => setConfirming(true)}>Disconnect Taiga</button> : <div className={styles.confirmation}><p>Disconnect this workspace and stop future renewal if it is your last one?</p><div><button type="button" className={styles.cancelButton} onClick={() => setConfirming(false)} disabled={disconnecting}>Keep connection</button><button type="button" className={styles.disconnectButton} onClick={disconnect} disabled={disconnecting}>{disconnecting ? 'Disconnecting…' : 'Disconnect workspace'}</button></div></div>}
           {error && <p className={styles.error} role="alert">{error}</p>}
         </section>
       </section>

@@ -31,6 +31,22 @@ function loadRazorpayCheckout() {
   });
 }
 
+function billingOffer(billing) {
+  if (!billing?.autopayAccepted) {
+    return {
+      title: 'Start your 7-day free trial.',
+      detail: '₹5 refundable mandate verification today. ₹100/month starts after your 7-day trial.',
+    };
+  }
+  if (billing?.cancelAtPeriodEnd) {
+    const periodEnd = new Date(billing.currentPeriodEndsAt);
+    const date = Number.isNaN(periodEnd.getTime()) ? 'the end of your current paid period' : new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium' }).format(periodEnd);
+    return { title: `Your paid access ends ${date}.`, detail: 'Reconnect this workspace now at no extra cost. Future auto-pay is already stopped.' };
+  }
+  if (billing?.status === 'active') return { title: 'Your ₹100/month plan is active.', detail: 'Connect Taiga now. No extra charge is required.' };
+  return { title: 'Your free trial is active.', detail: 'Connect Taiga now. Your first ₹100 charge starts only after the trial ends.' };
+}
+
 export default function TaigaOnboardForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -179,6 +195,7 @@ export default function TaigaOnboardForm() {
   }
 
   const approved = Boolean(billing?.autopayAccepted);
+  const offer = billingOffer(billing);
   const taskPilotNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.replace(/\D/g, '');
   const welcomeLink = taskPilotNumber ? `https://wa.me/${taskPilotNumber}?text=hi` : null;
 
@@ -242,8 +259,8 @@ export default function TaigaOnboardForm() {
               </div>
             </div>
             <div className={styles.trialOffer}>
-              <strong>{approved ? 'Your free trial is active.' : 'Start your 7-day free trial.'}</strong>
-              <span>₹5 refundable mandate verification today. ₹100/month starts after your 7-day trial.</span>
+              <strong>{offer.title}</strong>
+              <span>{offer.detail}</span>
             </div>
             {error && <p className={styles.error} role="alert">{error}</p>}
             {billingError && <p className={styles.error} role="alert">{billingError}</p>}

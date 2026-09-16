@@ -1,6 +1,7 @@
 import { getAuthenticatedClient, verifyCurrentPassword } from '@/server/auth/account';
 import { cancelRazorpaySubscriptionForUser, getBillingSummaryForUser } from '@/server/billing/subscriptions';
 import { deleteCredentialsForUser, deleteSession, getCredentialsForUser, saveSession, updateCredentialsForUser } from '@/server/database/pocketbase';
+import { getMhConnectionForUser } from '@/server/database/mhconnekt';
 import { decrypt, encrypt } from '@/server/security/crypto';
 import { authJson, authOptions, authRateLimit, requireTrustedOrigin } from '@/server/http/auth-response';
 import axios from 'axios';
@@ -49,10 +50,14 @@ export async function DELETE(request) {
   if (!client) return authJson(request, { error: 'Please log in.' }, 401);
 
   try {
-    // Cancel billing first. If Razorpay rejects the request, keep Taiga
-    // connected so the customer never loses access while auto-pay remains on.
-    const credentials = await getCredentialsForUser(client.record.id, client.admin);
-    await cancelRazorpaySubscriptionForUser(client.record.id, client.admin);
+    const [credentials, mhConnection] = await Promise.all([
+      getCredentialsForUser(client.record.id, client.admin),
+      getMhConnectionForUser(client.record.id, client.admin),
+    ]);
+    // A TaskPilot plan covers both workspaces. Only stop renewal after the
+    // final workspace is disconnected; a paid month remains usable until its
+    // current period ends.
+    if (!mhConnection) await cancelRazorpaySubscriptionForUser(client.record.id, client.admin);
     await deleteCredentialsForUser(client.record.id, client.admin);
     if (credentials?.whatsapp_number) {
       try {
@@ -65,7 +70,7 @@ export async function DELETE(request) {
   } catch (error) {
     console.error('Taiga disconnect failed.', error?.code || error?.message);
     return authJson(request, {
-      error: 'We could not cancel your auto-pay, so your Taiga connection is still active. Please try again.',
+      error: 'We could not safely update your subscription, so your Taiga connection is still active. Please try again.',
     }, 502);
   }
 }
