@@ -8,6 +8,27 @@ import styles from '../onboard.module.css';
 const isLocalBrowser = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
 const API_BASE_URL = isLocalBrowser ? '' : (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '');
 
+function loadRazorpayCheckout() {
+  if (window.Razorpay) return Promise.resolve(window.Razorpay);
+
+  return new Promise((resolve, reject) => {
+    const existingScript = document.querySelector('script[data-taskpilot-razorpay]');
+    if (existingScript) {
+      existingScript.addEventListener('load', () => resolve(window.Razorpay), { once: true });
+      existingScript.addEventListener('error', () => reject(new Error('Razorpay checkout could not load.')), { once: true });
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    script.dataset.taskpilotRazorpay = 'true';
+    script.onload = () => resolve(window.Razorpay);
+    script.onerror = () => reject(new Error('Razorpay checkout could not load.'));
+    document.body.appendChild(script);
+  });
+}
+
 export default function MhConnektOnboardForm() {
   const [form, setForm] = useState({ phone: '', email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
@@ -16,7 +37,19 @@ export default function MhConnektOnboardForm() {
   const [connected, setConnected] = useState(false);
   const [checkingConnection, setCheckingConnection] = useState(true);
   const [connection, setConnection] = useState(null);
+  const [billing, setBilling] = useState(null);
+  const [billingError, setBillingError] = useState('');
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentMessage, setPaymentMessage] = useState('');
   const waNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.replace(/\D/g, '');
+
+  async function loadBilling() {
+    const response = await fetch(`${API_BASE_URL}/api/billing/status`, { credentials: 'include' });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.error || 'We could not check billing.');
+    setBilling(body.billing || null);
+    return body.billing || null;
+  }
 
   useEffect(() => {
     let active = true;
@@ -33,25 +66,106 @@ export default function MhConnektOnboardForm() {
     return () => { active = false; };
   }, []);
 
-  async function submit(event) {
-    event.preventDefault();
-    setLoading(true); setError('');
+  useEffect(() => {
+    let active = true;
+    loadBilling().catch((requestError) => {
+      if (active) setBillingError(requestError.message || 'We could not check billing.');
+    });
+    return () => { active = false; };
+  }, []);
+
+  async function submitMh() {
+    setLoading(true);
+    setError('');
     try {
       const response = await fetch(`${API_BASE_URL}/api/integrations/mhconnekt`, {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form),
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.error || 'We could not connect MH Connekt.');
       setForm((value) => ({ ...value, password: '' }));
       setConnected(true);
       setConnection(null);
-    } catch (requestError) { setError(requestError.message || 'Network error. Please try again.'); }
-    finally { setLoading(false); }
+    } catch (requestError) {
+      setError(requestError.message || 'Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function waitForApproval() {
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      try {
+        const latestBilling = await loadBilling();
+        if (latestBilling?.autopayAccepted) {
+          setPaymentMessage('Your free trial is active. Connecting MH Connekt securely...');
+          setPaymentLoading(false);
+          await submitMh();
+          return;
+        }
+      } catch {
+        // Keep checking while Razorpay delivers the verified webhook.
+      }
+    }
+    setPaymentMessage('Razorpay approval is still being confirmed. Please refresh this page in a moment.');
+    setPaymentLoading(false);
+  }
+
+  async function beginAutopay() {
+    setPaymentLoading(true);
+    setPaymentMessage('');
+    setBillingError('');
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/billing/subscription`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || 'We could not start your free trial.');
+
+      const Razorpay = await loadRazorpayCheckout();
+      if (!Razorpay) throw new Error('Razorpay checkout could not load.');
+      const checkout = new Razorpay({
+        key: body.checkout.keyId,
+        subscription_id: body.checkout.subscriptionId,
+        name: 'TaskPilot',
+        description: '7-day free trial. ₹5 refundable mandate verification now; ₹100/month afterward.',
+        recurring: true,
+        redirect: false,
+        theme: { color: '#14281a', backdrop_color: '#14281a' },
+        modal: {
+          backdropclose: false,
+          confirm_close: true,
+          handleback: false,
+          ondismiss: () => setPaymentLoading(false),
+        },
+        handler: () => {
+          setPaymentMessage('Razorpay approval received. Confirming it securely...');
+          waitForApproval();
+        },
+      });
+      checkout.open();
+    } catch (requestError) {
+      setPaymentMessage(requestError.message || 'We could not start your free trial.');
+      setPaymentLoading(false);
+    }
+  }
+
+  async function submit(event) {
+    event.preventDefault();
+    setError('');
+    if (billing?.autopayAccepted) return submitMh();
+    return beginAutopay();
   }
 
   async function disconnect() {
     if (!window.confirm('Disconnect MH Connekt from TaskPilot? Your MH password is not stored.')) return;
-    setLoading(true); setError('');
+    setLoading(true);
+    setError('');
     try {
       const response = await fetch(`${API_BASE_URL}/api/integrations/mhconnekt`, { method: 'DELETE', credentials: 'include' });
       const body = await response.json().catch(() => ({}));
@@ -59,14 +173,19 @@ export default function MhConnektOnboardForm() {
       setConnected(false);
       setConnection(null);
       setForm({ phone: '', email: '', password: '' });
-    } catch (requestError) { setError(requestError.message || 'Network error. Please try again.'); }
-    finally { setLoading(false); }
+    } catch (requestError) {
+      setError(requestError.message || 'Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }
+
+  const approved = Boolean(billing?.autopayAccepted);
 
   return <main className={styles.setupMain}>
     <header className={styles.setupHeader}><Link href="/dashboard" className={styles.brand}>Task<span>Pilot</span></Link><div className={styles.setupHeaderActions}><Link href="/onboard" className={styles.headerLink}>Integrations</Link><SignOutButton className={styles.signOut} /></div></header>
     <section className={styles.setupContent}>
-      <div className={styles.setupIntro}><Link href="/onboard" className={styles.backLink}>← Back to integrations</Link><p className={styles.eyebrow}>MH Connekt connection</p><h1>Manage your timesheet from WhatsApp.</h1><p className={styles.setupLead}>Connect once. TaskPilot stores encrypted MH access tokens, not your MH password.</p></div>
+      <div className={styles.setupIntro}><Link href="/onboard" className={styles.backLink}>← Back to integrations</Link><p className={styles.eyebrow}>MH Connekt connection</p><h1>Manage your timesheet from WhatsApp.</h1><p className={styles.setupLead}>Enter your MH details, then start a 7-day free trial. Razorpay opens only after this form is complete to approve ₹100/month auto-pay.</p></div>
       <section className={styles.formCard} aria-labelledby="mh-form-title">
         {checkingConnection ? <div className={styles.connectionComplete}><p className={styles.cardEyebrow}>MH Connekt connection</p><h2 id="mh-form-title">Checking your connection...</h2></div> : connected ? <div className={styles.connectionComplete}><span className={styles.completeMark}>✓</span><p className={styles.cardEyebrow}>MH Connekt connected</p><h2 id="mh-form-title">Your timesheet is ready.</h2><p>{connection ? <>Connected as <strong>{connection.email}</strong> on <strong>{connection.whatsappNumber}</strong>.</> : 'Open TaskPilot in WhatsApp and send hi to manage your timesheet.'}</p><p className={styles.completeNote}>You can update these details or disconnect whenever you need.</p><div className={styles.completeActions}>{waNumber && <a href={`https://wa.me/${waNumber}?text=hi`} target="_blank" rel="noopener noreferrer" className={styles.submitBtn}>Open WhatsApp</a>}<Link href="/manage/mhconnekt/update" className={styles.textButton}>Update details</Link><button type="button" className={styles.textButton} onClick={disconnect} disabled={loading}>Disconnect</button><Link href="/manage/mhconnekt" className={styles.dashboardLink}>Manage MH Connekt</Link></div></div> : <>
           <div className={styles.formCardHeader}><span className={styles.taigaMark}>M</span><div><p className={styles.cardEyebrow}>MH Connekt connection</p><h2 id="mh-form-title">Your account details</h2></div></div>
@@ -75,7 +194,8 @@ export default function MhConnektOnboardForm() {
             <div className={styles.field}><label htmlFor="mh-phone">WhatsApp number</label><p>Include country code, with no spaces.</p><input id="mh-phone" name="phone" inputMode="tel" autoComplete="tel" placeholder="e.g. 919876543210" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required /></div>
             <div className={styles.field}><label htmlFor="mh-email">MH Connekt email</label><input id="mh-email" name="email" type="email" autoComplete="username" placeholder="Your MH Connekt email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required /></div>
             <div className={styles.field}><label htmlFor="mh-password">MH Connekt password</label><div className={styles.passwordControl}><input id="mh-password" name="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" placeholder="Your MH Connekt password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required /><button type="button" onClick={() => setShowPassword(!showPassword)}>{showPassword ? 'Hide' : 'Show'}</button></div></div>
-            {error && <p className={styles.error} role="alert">{error}</p>}<button type="submit" className={styles.submitBtn} disabled={loading}>{loading ? 'Saving MH Connekt...' : 'Connect MH Connekt'}</button>
+            <div className={styles.trialOffer}><strong>{approved ? 'Your free trial is active.' : 'Start your 7-day free trial.'}</strong><span>₹5 refundable mandate verification today. ₹100/month starts after your 7-day trial.</span></div>
+            {error && <p className={styles.error} role="alert">{error}</p>}{billingError && <p className={styles.error} role="alert">{billingError}</p>}{paymentMessage && <p className={styles.paymentMessage} role="status">{paymentMessage}</p>}<button type="submit" className={styles.submitBtn} disabled={loading || paymentLoading}>{loading ? 'Connecting MH Connekt...' : paymentLoading ? 'Opening secure Razorpay...' : approved ? 'Connect MH Connekt' : 'Start 7-day free trial'}</button>
           </form>
         </>}
       </section>
