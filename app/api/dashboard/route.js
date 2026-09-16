@@ -4,7 +4,6 @@ import { getBillingSummaryForUser } from '@/server/billing/subscriptions';
 import { getIntegrationStatusForUser } from '@/server/database/pocketbase';
 import { getMhConnectionForUser } from '@/server/database/mhconnekt';
 import { authJson, authOptions } from '@/server/http/auth-response';
-import { canUseIntegrations } from '@/server/features/integrations';
 
 export function OPTIONS(request) { return authOptions(request); }
 
@@ -34,18 +33,6 @@ export async function GET(request) {
       admin: client.record,
       overview,
       integrations: { ...integrations, mhConnektConnected: Boolean(mhConnection) },
-      integrationsAvailable: true,
-    });
-  }
-
-  const integrationsAvailable = canUseIntegrations(client.record);
-  if (!integrationsAvailable) {
-    return authJson(request, {
-      role: 'user',
-      user: client.record,
-      integrations: { taigaConnected: false, mhConnektConnected: false },
-      billing: null,
-      integrationsAvailable: false,
     });
   }
 
@@ -64,6 +51,5 @@ export async function GET(request) {
     user: client.record,
     integrations: { ...integrations, mhConnektConnected: Boolean(mhConnection) },
     billing,
-    integrationsAvailable: true,
   });
 }

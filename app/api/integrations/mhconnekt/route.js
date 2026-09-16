@@ -3,7 +3,6 @@ import { authJson, authOptions, authRateLimit, requireTrustedOrigin } from '@/se
 import { connectMhConnekt, updateMhConnektConnection } from '@/server/integrations/mhconnekt';
 import { deleteMhConnectionForUser, getMhConnectionForUser } from '@/server/database/mhconnekt';
 import { getBillingSubscription, getBillingSummaryForUser } from '@/server/billing/subscriptions';
-import { canUseIntegrations, integrationsLockedResponse } from '@/server/features/integrations';
 
 function phone(value) { return typeof value === 'string' ? value.trim().replace(/^\+/, '') : ''; }
 function email(value) { return typeof value === 'string' ? value.trim().toLowerCase() : ''; }
@@ -13,7 +12,6 @@ export function OPTIONS(request) { return authOptions(request); }
 export async function GET(request) {
   const client = await getAuthenticatedClient();
   if (!client) return authJson(request, { error: 'Please log in.' }, 401);
-  if (!canUseIntegrations(client.record)) return integrationsLockedResponse(request);
   try {
     const [connection, billing] = await Promise.all([
       getMhConnectionForUser(client.record.id, client.admin),
@@ -39,7 +37,6 @@ export async function POST(request) {
   const limited = authRateLimit(request, 'mhconnekt-connect', { limit: 5, windowMs: 15 * 60 * 1000 }); if (limited) return limited;
   const client = await getAuthenticatedClient();
   if (!client) return authJson(request, { error: 'Please sign in before connecting MH Connekt.' }, 401);
-  if (!canUseIntegrations(client.record)) return integrationsLockedResponse(request);
   try {
     const billing = await getBillingSubscription(client.record.id, client.admin);
     if (!billing?.razorpay_autopay_accepted) {
@@ -81,7 +78,6 @@ export async function PATCH(request) {
   const limited = authRateLimit(request, 'mhconnekt-connection-update', { limit: 5, windowMs: 15 * 60 * 1000 }); if (limited) return limited;
   const client = await getAuthenticatedClient();
   if (!client) return authJson(request, { error: 'Please sign in before updating MH Connekt.' }, 401);
-  if (!canUseIntegrations(client.record)) return integrationsLockedResponse(request);
 
   try {
     const body = await request.json();
@@ -122,7 +118,6 @@ export async function DELETE(request) {
   const rejected = requireTrustedOrigin(request); if (rejected) return rejected;
   const client = await getAuthenticatedClient();
   if (!client) return authJson(request, { error: 'Please log in.' }, 401);
-  if (!canUseIntegrations(client.record)) return integrationsLockedResponse(request);
   await deleteMhConnectionForUser(client.record.id, client.admin);
   return authJson(request, { success: true });
 }

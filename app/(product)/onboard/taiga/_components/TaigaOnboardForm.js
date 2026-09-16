@@ -48,18 +48,6 @@ export default function TaigaOnboardForm() {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [connectedPhone, setConnectedPhone] = useState('');
-  const [integrationsAvailable, setIntegrationsAvailable] = useState(null);
-
-  useEffect(() => {
-    let active = true;
-    fetch(`${API_BASE_URL}/api/auth/me`, { credentials: 'include' })
-      .then(async (response) => {
-        const body = await response.json().catch(() => ({}));
-        if (active) setIntegrationsAvailable(response.ok && Boolean(body.integrationsAvailable));
-      })
-      .catch(() => active && setIntegrationsAvailable(false));
-    return () => { active = false; };
-  }, []);
 
   async function loadBilling() {
     const response = await fetch(`${API_BASE_URL}/api/billing/status`, { credentials: 'include' });
@@ -193,44 +181,6 @@ export default function TaigaOnboardForm() {
   const approved = Boolean(billing?.autopayAccepted);
   const taskPilotNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.replace(/\D/g, '');
   const welcomeLink = taskPilotNumber ? `https://wa.me/${taskPilotNumber}?text=hi` : null;
-
-  if (integrationsAvailable === null) {
-    return <main className={styles.setupMain}><section className={styles.redirecting}><h1>Checking connection access...</h1><p>Loading your TaskPilot account.</p></section></main>;
-  }
-
-  if (!integrationsAvailable) {
-    return (
-      <main className={styles.setupMain}>
-        <header className={styles.setupHeader}>
-          <Link href="/dashboard" className={styles.brand}>Task<span>Pilot</span></Link>
-          <div className={styles.setupHeaderActions}>
-            <Link href="/onboard" className={styles.headerLink}>Integrations</Link>
-            <SignOutButton className={styles.signOut} />
-          </div>
-        </header>
-        <section className={styles.setupContent}>
-          <div className={styles.setupIntro}>
-            <Link href="/onboard" className={styles.backLink}>Back to integrations</Link>
-            <p className={styles.eyebrow}>Phase 1 testing</p>
-            <h1>Taiga connections are coming soon.</h1>
-            <p className={styles.setupLead}>You can explore TaskPilot now. Connection and payment setup are temporarily available only to the TaskPilot admin while testing continues.</p>
-          </div>
-          <section className={styles.formCard} aria-labelledby="taiga-locked-title">
-            <div className={styles.connectionComplete}>
-              <span className={styles.completeMark} aria-hidden="true">✓</span>
-              <p className={styles.cardEyebrow}>Phase 1 testing</p>
-              <h2 id="taiga-locked-title">Connection setup is temporarily locked.</h2>
-              <p>There is nothing you need to pay or configure yet. We will open Taiga connections after testing is complete.</p>
-              <div className={styles.completeActions}>
-                <Link href="/dashboard" className={styles.dashboardLink}>Back to dashboard</Link>
-                <Link href="/onboard" className={styles.textButton}>View integrations</Link>
-              </div>
-            </div>
-          </section>
-        </section>
-      </main>
-    );
-  }
 
   if (isUpdateMode) {
     return <main className={styles.setupMain}><section className={styles.redirecting}><h1>Opening Taiga settings…</h1><p>Taking you to the secure update page.</p></section></main>;
