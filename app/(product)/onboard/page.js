@@ -39,7 +39,6 @@ const integrations = [
 export default function OnboardPage() {
   const [taigaConnected, setTaigaConnected] = useState(null);
   const [mhConnected, setMhConnected] = useState(null);
-  const [integrationsAvailable, setIntegrationsAvailable] = useState(false);
   const waNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.replace(/\D/g, '');
   const resumeLink = waNumber ? `https://wa.me/${waNumber}?text=hi` : '/manage/taiga';
 
@@ -49,7 +48,6 @@ export default function OnboardPage() {
       .then(async (response) => {
         const body = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(body.error || 'Could not load integration status.');
-        if (active) setIntegrationsAvailable(Boolean(body.integrationsAvailable));
         return Boolean(body.integrations?.taigaConnected);
       })
       .then((connected) => active && setTaigaConnected(connected))
@@ -67,14 +65,6 @@ export default function OnboardPage() {
   }, []);
 
   const displayedIntegrations = integrations.map((integration) => {
-    if (!integrationsAvailable) return {
-      ...integration,
-      description: 'Connections are being prepared for a future TaskPilot release. You can still use your account and dashboard.',
-      action: 'Coming soon',
-      status: 'Phase 1',
-      available: false,
-      connected: false,
-    };
     if (integration.name === 'MH Connekt' && mhConnected === true) return {
       ...integration,
       description: 'Your MH Connekt account is connected. Open WhatsApp to manage your timesheet.',
@@ -107,11 +97,10 @@ export default function OnboardPage() {
       <section className={styles.selectorShell}>
         <div className={styles.selectorIntro}>
           <span className={styles.eyebrow}>Connect your workspace</span>
-          <h1>{integrationsAvailable ? 'Choose the tools you use' : 'Connections are coming soon'}</h1>
+          <h1>Choose the tools you use</h1>
           <p>
-            {integrationsAvailable
-              ? 'Connect one or both. When both are active, TaskPilot will ask which workspace you want to use in WhatsApp.'
-              : 'Phase 1 lets you create, verify, and use your TaskPilot account. Taiga and MH Connekt connections are available only to the TaskPilot admin while testing continues.'}
+            Connect one or both. When both are active, TaskPilot will ask which workspace
+            you want to use in WhatsApp.
           </p>
         </div>
 

@@ -48,35 +48,6 @@ export default function DashboardClient() {
 
   if (data.role === 'admin') return <AdminDashboard admin={data.admin} overview={data.overview} />;
 
-  if (!data.integrationsAvailable) {
-    return (
-      <main className={styles.main}>
-        <header className={styles.header}>
-          <Link href="/dashboard" className={styles.brand}>Task<span>Pilot</span></Link>
-          <div className={styles.headerActions}><SignOutButton className={styles.signOut} /></div>
-        </header>
-        <section className={styles.content}>
-          <div className={styles.hero}>
-            <div>
-              <p className={styles.eyebrow}>Phase 1</p>
-              <h1>Hello, {data.user.name || 'there'}.</h1>
-              <p>Your TaskPilot account and dashboard are ready. Taiga and MH Connekt connections are being tested and will open in a later release.</p>
-            </div>
-            <div className={styles.accountChip}><span>{data.user.name?.charAt(0)?.toUpperCase() || 'T'}</span><div><strong>{data.user.name || 'TaskPilot user'}</strong><small>{data.user.email}</small></div></div>
-          </div>
-          <section className={styles.integrationGrid} aria-label="Phase 1 status">
-            <article className={styles.integrationCard}>
-              <div className={styles.cardTop}><span className={styles.icon}>✓</span><span className={styles.notConnected}>Phase 1</span></div>
-              <h2>Connections are coming soon</h2>
-              <p>Taiga, MH Connekt, WhatsApp work actions, and billing are temporarily available only to the TaskPilot admin for testing.</p>
-              <span className={styles.cardAction}>Coming soon</span>
-            </article>
-          </section>
-        </section>
-      </main>
-    );
-  }
-
   const { user, integrations, billing } = data;
   const waNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.replace(/\D/g, '');
   const waLink = waNumber ? `https://wa.me/${waNumber}?text=hi` : null;
